@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Vampire Survivors Mini - Sinh Tồn Bóng Tối</title>
+  <meta name="description" content="Tựa game Top-down Survival mini phong cách Vampire Survivors được xây dựng bằng HTML5 Canvas và Vanilla JavaScript.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Main Render Canvas -->
+    <canvas id="game-canvas" width="1280" height="720"></canvas>
+
+    <!-- In-Game HUD Overlay -->
+    <div id="hud-overlay">
+      <!-- Full-width EXP Bar -->
+      <div class="exp-bar-container">
+        <div id="exp-bar-fill" class="exp-bar-fill"></div>
+      </div>
+
+      <!-- Top Status Header -->
+      <div class="hud-top-bar">
+        <div class="hud-left">
+          <div id="level-badge" class="level-badge">LV 1</div>
+          <div class="hp-container">
+            <span class="hp-icon">❤️</span>
+            <div class="hp-bar-track">
+              <div id="hp-bar-fill" class="hp-bar-fill"></div>
+            </div>
+            <span id="hp-text" class="hp-text">100 / 100</span>
+          </div>
+        </div>
+
+        <div class="hud-center">
+          <div id="timer-display" class="timer-display">00:00</div>
+        </div>
+
+        <div class="hud-right">
+          <div id="kills-display" class="kills-display">💀 0</div>
+          <div class="hud-actions">
+            <button id="pause-btn" class="icon-btn" title="Tạm dừng (P / ESC)">⏸️</button>
+            <button id="mute-btn" class="icon-btn" title="Âm thanh">🔊</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Hint -->
+      <div class="hud-bottom-bar">
+        <span class="controls-hint">Di chuyển: W, A, S, D hoặc Mũi tên | Tự động tấn công quái gần nhất</span>
+      </div>
+
+      <!-- Bottom-Left Special Skills Tray (Active skills 1, 2, 3...) -->
+      <div id="special-skills-tray" class="special-skills-tray"></div>
+    </div>
+
+    <!-- Mobile / Touch Virtual Control Zone -->
+    <div id="touch-controls" title="Chạm để di chuyển"></div>
+
+    <!-- Level Up & Lucky Roulette Modal -->
+    <div id="level-up-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h2 id="modal-title" class="modal-title">THĂNG CẤP!</h2>
+        <p id="modal-subtitle" class="modal-subtitle">Hãy chọn 1 thẻ cường hóa để tăng sức mạnh sinh tồn</p>
+
+        <!-- Tilted 3D Circular Orbit Roll Section for Milestone Levels (5, 10, 15...) -->
+        <div id="roulette-section" class="roulette-section hidden">
+          <div class="orbit-carousel-container">
+            <canvas id="orbit-canvas" width="760" height="160"></canvas>
+          </div>
+        </div>
+
+        <div id="cards-container" class="cards-container">
+          <!-- 3 Upgrade cards rendered dynamically via upgrade.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal-backdrop hidden">
+      <div class="modal-card game-over-card">
+        <h2 class="game-over-title">KẾT THÚC</h2>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">THỜI GIAN</div>
+            <div id="final-time" class="stat-val">00:00</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">TIÊU DIỆT</div>
+            <div id="final-kills" class="stat-val">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">CẤP ĐỘ</div>
+            <div id="final-level" class="stat-val">Lv.1</div>
+          </div>
+        </div>
+        <button id="restart-btn" class="primary-btn">CHƠI LẠI</button>
+      </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="pause-modal" class="modal-backdrop hidden">
+      <div class="modal-card pause-card">
+        <h2 class="modal-title">TẠM DỪNG</h2>
+        <p class="modal-subtitle">Trò chơi đang dừng. Nhấn nút bên dưới để tiếp tục.</p>
+        <button id="resume-btn" class="primary-btn" style="background: linear-gradient(135deg, #0284c7, #38bdf8); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);">TIẾP TỤC</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main ES Module Script -->
+  <script type="module" src="js/main.js?v=5"></script>
+</body>
+</html>
