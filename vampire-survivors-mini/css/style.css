@@ -631,8 +631,9 @@ body {
   opacity: 1 !important;
   transform: translateY(-12px) scale(1.04) !important;
   border-color: #fde047 !important;
-  background: radial-gradient(circle at 50% 20%, rgba(253, 224, 71, 0.18), rgba(30, 41, 59, 0.98)) !important;
-  box-shadow: 0 0 32px rgba(253, 224, 71, 0.7), 0 18px 40px rgba(0, 0, 0, 0.9) !important;
+  background: radial-gradient(circle at 50% 20%, rgba(253, 224, 71, 0.1), rgba(30, 41, 59, 0.98)) !important;
+  box-shadow: 0 0 12px rgba(253, 224, 71, 0.26),
+              0 12px 28px rgba(0, 0, 0, 0.85) !important;
   z-index: 20;
 }
 
@@ -640,9 +641,29 @@ body {
 .upgrade-card.special.keyboard-focused,
 .card-slot-frame.filled.special.selected-card,
 .card-slot-frame.filled.special.keyboard-focused {
-  border-color: #fde047 !important;
-  background: radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.28), rgba(168, 85, 247, 0.35), rgba(15, 23, 42, 0.98)) !important;
-  box-shadow: 0 0 38px rgba(253, 224, 71, 0.8), 0 18px 40px rgba(0, 0, 0, 0.9) !important;
+  border-color: #f59e0b !important;
+  background: radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.18), rgba(168, 85, 247, 0.2), rgba(15, 23, 42, 0.98)) !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.32),
+              0 12px 28px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* Hide top connector beam and interior overlay on selected card so no yellow circle or rim appears */
+.card-slot-frame.filled.selected-card .card-spotlight-beam,
+.card-slot-frame.filled.keyboard-focused .card-spotlight-beam {
+  display: none !important;
+}
+
+.card-slot-frame.filled.selected-card::before,
+.card-slot-frame.filled.keyboard-focused::before {
+  display: none !important;
+}
+
+.card-slot-frame .card-badge,
+.card-slot-frame .card-icon,
+.card-slot-frame .card-title,
+.card-slot-frame .card-desc {
+  position: relative;
+  z-index: 2;
 }
 
 /* Modal Keyboard Hints Bar */

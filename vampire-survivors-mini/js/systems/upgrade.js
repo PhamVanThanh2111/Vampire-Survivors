@@ -460,8 +460,9 @@ export class UpgradeSystem {
         this.orbitAnimId = requestAnimationFrame(animateOrbit);
       } else {
         this.orbitVelocity = 0;
-        // Spin finished: Draw strictly and exclusively the 3 target cards above the 3 lights!
-        this.drawOrbitView(poolCards, false, targetCards);
+        this.poolCards = poolCards;
+        // Spin finished: Draw target cards with dynamic spotlight landing
+        this.drawOrbitView(poolCards, false, targetCards, this.selectedIndex);
         if (onComplete) onComplete();
       }
     };
@@ -474,10 +475,10 @@ export class UpgradeSystem {
    * Draws the 3D Tilted Circular Orbit.
    * When isSpinning is TRUE: draws pool cards rotating around the ellipse track.
    * When isSpinning is FALSE (kết quả quay ra):
-   * STRICTLY AND EXCLUSIVELY draws ONLY the 3 result cards (targetCards) in the wheel,
-   * with 3 bright spotlights shining STRAIGHT DOWN directly into the 3 result cards below!
+   * Draws winning cards in front with dynamic, curved, soft-feathered spotlights
+   * connecting seamlessly into the active card without any sharp horizontal cut!
    */
-  drawOrbitView(cards, isSpinning = true, targetCards = null) {
+  drawOrbitView(cards, isSpinning = true, targetCards = null, selectedIndex = this.selectedIndex) {
     if (!this.orbitCtx) return;
     const ctx = this.orbitCtx;
     const w = this.orbitCanvas.width;   // 760
@@ -514,74 +515,110 @@ export class UpgradeSystem {
     const cardYPositions = [56, 72, 56];
 
     // 2. DRAW THE 3 SPOTLIGHT BEAMS (Chiếu thẳng đứng xuống 3 thẻ kết quả)
+    // Thiết kế volumetric mềm mại, lượn cong ôm lấy đầu thẻ và hòa quyện mượt mà, không bị đứt ngang
     ctx.save();
     for (let s = 0; s < slotXPositions.length; s++) {
       const sx = slotXPositions[s];
       const startY = cardYPositions[s];
       const isCardSpecial = !isSpinning && targetCards && targetCards[s] && targetCards[s].type === 'SPECIAL';
+      const isSelected = !isSpinning && s === selectedIndex;
 
-      // Width of beam: starts at card base (60px), expands straight down to card slot width (210px)
-      const topHalfW = 30;
-      const bottomHalfW = 105;
+      // Khi thẻ được select, thẻ nổi lên ~14px (translateY(-12px) scale(1.04))
+      // Đích đến của chùm sáng sẽ tự động thích ứng với vị trí thực tế của thẻ (h - 15) thay vì cắt cụt tại h!
+      const endY = isSelected ? (h - 15) : h;
 
-      // Volumetric spotlight trapezoid
-      const grad = ctx.createLinearGradient(sx, startY, sx, h);
+      // Chiều rộng chùm sáng
+      const topHalfW = isSelected ? 34 : 30;
+      const bottomHalfW = isSelected ? 114 : 106;
+
+      // Gradient sáng mềm dịu hơn nhiều, giảm opacity để ánh đèn vàng không bị chói hay gắt
+      const grad = ctx.createLinearGradient(sx, startY, sx, endY + 12);
       if (isSpinning) {
-        grad.addColorStop(0, 'rgba(245, 158, 11, 0.45)');
-        grad.addColorStop(0.5, 'rgba(56, 189, 248, 0.25)');
-        grad.addColorStop(1.0, 'rgba(56, 189, 248, 0.7)');
+        grad.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+        grad.addColorStop(0.5, 'rgba(56, 189, 248, 0.12)');
+        grad.addColorStop(0.85, 'rgba(56, 189, 248, 0.2)');
+        grad.addColorStop(1.0, 'rgba(56, 189, 248, 0.01)');
+      } else if (isSelected) {
+        // Thẻ đang được chọn: chùm sáng vàng trong suốt, êm dịu, độ mờ thấp
+        if (isCardSpecial) {
+          grad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
+          grad.addColorStop(0.3, 'rgba(245, 158, 11, 0.28)');
+          grad.addColorStop(0.7, 'rgba(253, 224, 71, 0.12)');
+          grad.addColorStop(0.9, 'rgba(253, 224, 71, 0.04)');
+          grad.addColorStop(1.0, 'rgba(253, 224, 71, 0)');
+        } else {
+          grad.addColorStop(0, 'rgba(253, 224, 71, 0.42)');
+          grad.addColorStop(0.3, 'rgba(245, 158, 11, 0.24)');
+          grad.addColorStop(0.7, 'rgba(56, 189, 248, 0.1)');
+          grad.addColorStop(0.9, 'rgba(56, 189, 248, 0.03)');
+          grad.addColorStop(1.0, 'rgba(56, 189, 248, 0)');
+        }
       } else if (isCardSpecial) {
-        grad.addColorStop(0, 'rgba(254, 240, 138, 0.95)');
-        grad.addColorStop(0.3, 'rgba(245, 158, 11, 0.75)');
-        grad.addColorStop(0.7, 'rgba(168, 85, 247, 0.45)');
-        grad.addColorStop(1.0, 'rgba(245, 158, 11, 0.95)');
+        grad.addColorStop(0, 'rgba(254, 240, 138, 0.28)');
+        grad.addColorStop(0.35, 'rgba(245, 158, 11, 0.15)');
+        grad.addColorStop(0.75, 'rgba(168, 85, 247, 0.08)');
+        grad.addColorStop(1.0, 'rgba(168, 85, 247, 0)');
       } else {
-        grad.addColorStop(0, 'rgba(253, 224, 71, 0.9)');
-        grad.addColorStop(0.35, 'rgba(245, 158, 11, 0.6)');
-        grad.addColorStop(0.75, 'rgba(56, 189, 248, 0.45)');
-        grad.addColorStop(1.0, 'rgba(56, 189, 248, 0.85)');
+        grad.addColorStop(0, 'rgba(253, 224, 71, 0.25)');
+        grad.addColorStop(0.35, 'rgba(245, 158, 11, 0.12)');
+        grad.addColorStop(0.75, 'rgba(56, 189, 248, 0.08)');
+        grad.addColorStop(1.0, 'rgba(56, 189, 248, 0)');
       }
 
+      // 1. Dùng shadowBlur để tán mịn viền chùm sáng ra ngoài không gian, triệt tiêu viền sắc bén
+      ctx.save();
+      ctx.shadowColor = isSelected
+        ? (isCardSpecial ? 'rgba(245, 158, 11, 0.45)' : 'rgba(253, 224, 71, 0.4)')
+        : 'rgba(56, 189, 248, 0.2)';
+      ctx.shadowBlur = isSelected ? 22 : 12;
+
+      // Vẽ hình thang nón sáng có đáy cong mềm mại
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.moveTo(sx - topHalfW, startY);
       ctx.lineTo(sx + topHalfW, startY);
-      ctx.lineTo(sx + bottomHalfW, h);
-      ctx.lineTo(sx - bottomHalfW, h);
+      ctx.lineTo(sx + bottomHalfW, endY);
+      ctx.quadraticCurveTo(sx, endY + (isSelected ? 8 : 4), sx - bottomHalfW, endY);
       ctx.closePath();
       ctx.fill();
+      ctx.restore();
 
-      // Intense center beam core
-      const coreGrad = ctx.createLinearGradient(sx, startY, sx, h);
-      coreGrad.addColorStop(0, isCardSpecial ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.75)');
-      coreGrad.addColorStop(0.6, isCardSpecial ? 'rgba(245, 158, 11, 0.4)' : 'rgba(253, 224, 71, 0.35)');
-      coreGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.1)');
+      // 2. Lõi sáng trung tâm mờ ảo, nhẹ nhàng
+      const coreGrad = ctx.createLinearGradient(sx, startY, sx, endY + 8);
+      coreGrad.addColorStop(0, isSelected ? 'rgba(255, 255, 255, 0.38)' : isCardSpecial ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.2)');
+      coreGrad.addColorStop(0.5, isCardSpecial ? 'rgba(245, 158, 11, 0.15)' : 'rgba(253, 224, 71, 0.1)');
+      coreGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.03)');
+      coreGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = coreGrad;
       ctx.beginPath();
-      ctx.moveTo(sx - 15, startY);
-      ctx.lineTo(sx + 15, startY);
-      ctx.lineTo(sx + 45, h);
-      ctx.lineTo(sx - 45, h);
+      ctx.moveTo(sx - (isSelected ? 16 : 14), startY);
+      ctx.lineTo(sx + (isSelected ? 16 : 14), startY);
+      ctx.lineTo(sx + (isSelected ? 44 : 40), endY);
+      ctx.quadraticCurveTo(sx, endY + 5, sx - (isSelected ? 44 : 40), endY);
       ctx.closePath();
       ctx.fill();
 
-      // Vertical central laser ray pointing straight down
-      ctx.strokeStyle = isCardSpecial ? 'rgba(254, 240, 138, 0.7)' : 'rgba(255, 255, 255, 0.55)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(sx, startY);
-      ctx.lineTo(sx, h);
-      ctx.stroke();
+      // 3. Tia sáng trung tâm nhẹ nhàng khi đang quay
+      if (isSpinning) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(sx, startY);
+        ctx.lineTo(sx, endY);
+        ctx.stroke();
 
-      // Luminous oval light pool at the very bottom edge connecting directly into the card below
-      ctx.fillStyle = isSpinning
-        ? 'rgba(56, 189, 248, 0.6)'
-        : isCardSpecial
-        ? 'rgba(254, 240, 138, 0.95)'
-        : 'rgba(253, 224, 71, 0.95)';
-      ctx.beginPath();
-      ctx.ellipse(sx, h - 2, 95, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
+        // Quầng sáng tiếp xúc chỉ vẽ nhẹ khi đang quay bánh xe
+        const flareRadiusX = 88;
+        const flareRadiusY = 5;
+        const flareGrad = ctx.createRadialGradient(sx, endY, 0, sx, endY, flareRadiusX);
+        flareGrad.addColorStop(0, 'rgba(56, 189, 248, 0.12)');
+        flareGrad.addColorStop(0.4, 'rgba(56, 189, 248, 0.04)');
+        flareGrad.addColorStop(1.0, 'rgba(56, 189, 248, 0)');
+        ctx.fillStyle = flareGrad;
+        ctx.beginPath();
+        ctx.ellipse(sx, endY, flareRadiusX, flareRadiusY, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     ctx.restore();
 
@@ -820,6 +857,12 @@ export class UpgradeSystem {
       } else {
         el.classList.remove('selected-card', 'keyboard-focused');
       }
+    }
+
+    // Re-draw orbit canvas spotlights smoothly focused on the active card
+    if (this.rouletteSectionEl && !this.rouletteSectionEl.classList.contains('hidden') && this.currentCards && this.currentCards.length > 0) {
+      const pool = this.poolCards || UPGRADE_POOL;
+      this.drawOrbitView(pool, false, this.currentCards, this.selectedIndex);
     }
   }
 
