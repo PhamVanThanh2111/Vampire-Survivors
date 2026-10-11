@@ -23,6 +23,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Keyboard Event Listeners
   window.addEventListener('keydown', (e) => {
+    // 1. Intercept keyboard input when Level Up Upgrade selection modal is active
+    if (game.upgradeSystem && game.upgradeSystem.isSelecting) {
+      const handled = game.upgradeSystem.handleKeyDown(e);
+      if (handled) {
+        e.preventDefault();
+        return;
+      }
+    }
+
     const key = e.key.toLowerCase();
 
     // Movement

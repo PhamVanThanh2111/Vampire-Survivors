@@ -52,6 +52,59 @@
 
       <!-- Bottom-Left Special Skills Tray (Active skills 1, 2, 3...) -->
       <div id="special-skills-tray" class="special-skills-tray"></div>
+
+      <!-- Right-Edge Vertical Player Stats & Status Effects Panel -->
+      <div id="player-stats-panel" class="player-stats-panel">
+        <div class="stats-panel-header">
+          <span class="stats-panel-icon">📊</span>
+          <span class="stats-panel-title">CHỈ SỐ SINH TỒN</span>
+        </div>
+        
+        <div class="stats-list">
+          <div class="stat-row">
+            <span class="stat-row-label">⚡ Tốc độ di chuyển</span>
+            <span id="stat-speed" class="stat-row-val">200 px/s</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">⚔️ Sát thương</span>
+            <span id="stat-damage" class="stat-row-val">x1.00</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">🎯 Tỉ lệ chí mạng</span>
+            <span id="stat-crit-chance" class="stat-row-val">10%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">💥 Sát thương chí mạng</span>
+            <span id="stat-crit-mult" class="stat-row-val">x1.75</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">🛡️ Quả cầu xoay</span>
+            <span id="stat-blades" class="stat-row-val">1/6</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">🌀 Tốc độ xoay</span>
+            <span id="stat-blade-speed" class="stat-row-val">3.2 rad/s</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">🔮 Tốc độ bắn đạn</span>
+            <span id="stat-cooldown" class="stat-row-val">0.60s</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">🧲 Hút Gem</span>
+            <span id="stat-magnet" class="stat-row-val">100 px</span>
+          </div>
+        </div>
+
+        <div class="stats-section-divider"></div>
+
+        <div class="stats-panel-header sub-header">
+          <span class="stats-panel-icon">✨</span>
+          <span class="stats-panel-title">HIỆU ỨNG ĐANG CÓ</span>
+        </div>
+        <div id="player-effects-list" class="player-effects-list">
+          <!-- Populated dynamically with interactive hover tooltips -->
+        </div>
+      </div>
     </div>
 
     <!-- Mobile / Touch Virtual Control Zone -->
@@ -72,6 +125,13 @@
 
         <div id="cards-container" class="cards-container">
           <!-- 3 Upgrade cards rendered dynamically via upgrade.js -->
+        </div>
+
+        <!-- Keyboard Controls Hint for Upgrade Selection -->
+        <div class="modal-keyboard-hints">
+          <span class="hint-item"><span class="key-pill">1</span> <span class="key-pill">2</span> <span class="key-pill">3</span> hoặc <span class="key-pill">←</span> <span class="key-pill">→</span> Chọn thẻ</span>
+          <span class="hint-separator">|</span>
+          <span class="hint-item"><span class="key-pill">ENTER</span> Chốt thẻ</span>
         </div>
       </div>
     </div>
@@ -98,17 +158,39 @@
       </div>
     </div>
 
-    <!-- Pause Modal -->
+    <!-- Pause Modal with Full Acquired Upgrades List -->
     <div id="pause-modal" class="modal-backdrop hidden">
       <div class="modal-card pause-card">
-        <h2 class="modal-title">TẠM DỪNG</h2>
-        <p class="modal-subtitle">Trò chơi đang dừng. Nhấn nút bên dưới để tiếp tục.</p>
-        <button id="resume-btn" class="primary-btn" style="background: linear-gradient(135deg, #0284c7, #38bdf8); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);">TIẾP TỤC</button>
+        <h2 class="modal-title">⏸️ TRÒ CHƠI TẠM DỪNG</h2>
+        <p class="modal-subtitle">Danh sách thẻ cường hóa & kỹ năng đã kích hoạt trong đợt sinh tồn này:</p>
+        
+        <div class="pause-upgrades-container">
+          <div class="pause-section-group">
+            <div class="pause-section-header">
+              <span class="pause-section-icon">👑</span>
+              <span class="pause-section-title">KỸ NĂNG ĐẶC BIỆT</span>
+            </div>
+            <div id="pause-special-list" class="pause-upgrades-grid special-grid"></div>
+          </div>
+
+          <div class="pause-section-group">
+            <div class="pause-section-header">
+              <span class="pause-section-icon">📦</span>
+              <span class="pause-section-title">THẺ CƯỜNG HÓA VŨ KHÍ & NỘI TẠI</span>
+            </div>
+            <div id="pause-normal-list" class="pause-upgrades-grid normal-grid"></div>
+          </div>
+        </div>
+
+        <div class="pause-actions">
+          <button id="resume-btn" class="primary-btn resume-btn">TIẾP TỤC CHIẾN ĐẤU (ESC / P)</button>
+        </div>
       </div>
     </div>
+
   </div>
 
   <!-- Main ES Module Script -->
-  <script type="module" src="js/main.js?v=5"></script>
+  <script type="module" src="js/main.js?v=9"></script>
 </body>
 </html>

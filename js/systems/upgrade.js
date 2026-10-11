@@ -82,8 +82,11 @@ export const UPGRADE_POOL = [
     icon: '🔮',
     type: 'WEAPON',
     description: 'Magic Bolt bắn nhanh hơn đáng kể.',
+    isAvailable(player) {
+      return player.boltCooldown > 0.16;
+    },
     apply(player) {
-      player.boltCooldown = Math.max(0.15, player.boltCooldown * 0.8);
+      player.boltCooldown = Math.max(0.15, parseFloat((player.boltCooldown * 0.8).toFixed(3)));
     }
   },
   {
@@ -92,8 +95,11 @@ export const UPGRADE_POOL = [
     icon: '🎯',
     type: 'OFFENSE',
     description: 'Gia tăng cơ hội tung đòn chí mạng bộc phát lượng sát thương cực đại.',
+    isAvailable(player) {
+      return player.critChance < 1.0;
+    },
     apply(player) {
-      player.critChance = Math.min(0.85, player.critChance + 0.15);
+      player.critChance = Math.min(1.0, parseFloat((player.critChance + 0.15).toFixed(2)));
     }
   },
   {
@@ -103,7 +109,7 @@ export const UPGRADE_POOL = [
     type: 'OFFENSE',
     description: 'Các đòn đánh chí mạng hủy diệt kẻ địch với lượng sát thương nhân bội.',
     apply(player) {
-      player.critMultiplier += 0.50;
+      player.critMultiplier = parseFloat((player.critMultiplier + 0.50).toFixed(2));
     }
   },
   {
@@ -112,8 +118,11 @@ export const UPGRADE_POOL = [
     icon: '🩸',
     type: 'STATUS',
     description: 'Đòn đánh gây xuất huyết, liên tục cấu rỉa máu kẻ địch trong 3 giây.',
+    isAvailable(player) {
+      return player.bleedChance < 1.0;
+    },
     apply(player) {
-      player.bleedChance = Math.min(1.0, player.bleedChance + 0.35);
+      player.bleedChance = Math.min(1.0, parseFloat((player.bleedChance + 0.35).toFixed(2)));
       player.bleedDamage = Math.round(player.bleedDamage * 1.35 + 4);
     }
   },
@@ -123,9 +132,12 @@ export const UPGRADE_POOL = [
     icon: '❄️',
     type: 'STATUS',
     description: 'Đòn đánh đóng băng phủ sương giá, làm chậm 35% tốc độ di chuyển của địch.',
+    isAvailable(player) {
+      return player.freezeChance < 1.0;
+    },
     apply(player) {
-      player.freezeChance = Math.min(1.0, player.freezeChance + 0.35);
-      player.freezeSlowFactor = Math.min(0.40, player.freezeSlowFactor + 0.05);
+      player.freezeChance = Math.min(1.0, parseFloat((player.freezeChance + 0.35).toFixed(2)));
+      player.freezeSlowFactor = Math.min(0.40, parseFloat((player.freezeSlowFactor + 0.05).toFixed(2)));
     }
   },
   {
@@ -138,7 +150,7 @@ export const UPGRADE_POOL = [
       return player.stunChance < 0.28;
     },
     apply(player) {
-      player.stunChance = Math.min(0.28, player.stunChance + 0.08);
+      player.stunChance = Math.min(0.28, parseFloat((player.stunChance + 0.08).toFixed(2)));
       player.stunDuration = 1.0;
     }
   },
@@ -157,8 +169,8 @@ export const UPGRADE_POOL = [
       player.maxHp += 20;
       player.heal(40);
       player.speed = Math.round(player.speed * 1.12);
-      player.damageMultiplier += 0.15;
-      player.critChance = Math.min(0.85, player.critChance + 0.06);
+      player.damageMultiplier = parseFloat((player.damageMultiplier + 0.15).toFixed(2));
+      player.critChance = Math.min(1.0, parseFloat((player.critChance + 0.06).toFixed(2)));
       player.critMultiplier += 0.25;
       player.magnetRadius = Math.round(player.magnetRadius * 1.2);
       player.boltCooldown = Math.max(0.15, player.boltCooldown * 0.92);
@@ -225,6 +237,26 @@ export class UpgradeSystem {
     this.orbitVelocity = 0;
     this.orbitAnimId = null;
     this.onSelectCallback = null;
+
+    // Keyboard & Mouse selection state
+    this.currentCards = [];
+    this.selectedIndex = 0;
+    this.isSelecting = false;
+    this.player = null;
+    this.lastMouseX = -1;
+    this.lastMouseY = -1;
+
+    // Direct capture-phase keydown listener on window to guarantee 100% responsiveness
+    this.boundKeyHandler = (e) => {
+      if (this.isSelecting) {
+        const handled = this.handleKeyDown(e);
+        if (handled) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+    window.addEventListener('keydown', this.boundKeyHandler, true);
   }
 
   /**
@@ -235,9 +267,23 @@ export class UpgradeSystem {
     const isMilestone = player.level % 5 === 0;
 
     // Filter normal (non-special) cards that are currently available
-    const normalPool = UPGRADE_POOL.filter(
+    let normalPool = UPGRADE_POOL.filter(
       up => !up.isSpecial && (!up.isAvailable || up.isAvailable(player))
     );
+
+    // Fallback if available cards are fewer than count (when many cards reach max cap)
+    if (normalPool.length < count) {
+      const repeatables = UPGRADE_POOL.filter(up =>
+        ['damage_boost', 'heal_hp', 'speed_boost', 'crit_damage_boost'].includes(up.id)
+      );
+      const poolIds = new Set(normalPool.map(u => u.id));
+      for (const rep of repeatables) {
+        if (!poolIds.has(rep.id)) {
+          normalPool.push(rep);
+          poolIds.add(rep.id);
+        }
+      }
+    }
 
     // Filter available special cards
     const specialPool = UPGRADE_POOL.filter(
@@ -335,6 +381,10 @@ export class UpgradeSystem {
    */
   fillSlotsWithCards(cards, player) {
     this.cardsContainerEl.innerHTML = '';
+    this.currentCards = cards;
+    this.selectedIndex = 0;
+    this.isSelecting = true;
+    this.player = player;
 
     cards.forEach((card, index) => {
       const slotEl = document.createElement('div');
@@ -349,20 +399,30 @@ export class UpgradeSystem {
         <div class="card-icon">${card.icon}</div>
         <h3 class="card-title">${card.title}</h3>
         <p class="card-desc">${card.description}</p>
-        <button class="card-btn" id="card-btn-${index}">CHỌN</button>
       `;
 
-      slotEl.addEventListener('click', () => {
-        soundManager.playSelect();
-        card.apply(player, this.game);
-        this.hide();
-        if (this.onSelectCallback) {
-          this.onSelectCallback(card);
+      slotEl.addEventListener('mouseenter', () => {
+        this.focusCardByIndex(index);
+      });
+
+      slotEl.addEventListener('mousemove', (e) => {
+        if (this.lastMouseX !== e.clientX || this.lastMouseY !== e.clientY) {
+          this.lastMouseX = e.clientX;
+          this.lastMouseY = e.clientY;
+          if (this.selectedIndex !== index) {
+            this.focusCardByIndex(index);
+          }
         }
+      });
+
+      slotEl.addEventListener('click', () => {
+        this.selectCardByIndex(index);
       });
 
       this.cardsContainerEl.appendChild(slotEl);
     });
+
+    this.updateFocusedCard();
   }
 
   /**
@@ -556,20 +616,58 @@ export class UpgradeSystem {
       }
     } else {
       // WHEN STOPPED (KẾT QUẢ QUAY RA):
-      // STRICTLY AND EXCLUSIVELY DRAW ONLY THE 3 ROLLED RESULT CARDS!
-      // Exactly 3 cards, resting in the wheel above the 3 spotlights!
+      // The 3 target cards sit prominently in the foreground under the 3 spotlights.
+      // ALL other cards from the pool are STILL VISIBLE in the background along the rear elliptical rail!
+      const cardItems = [];
+
+      // 1. Gather remaining cards from the pool (cards that were not selected)
+      const remainingCards = cards.filter(c => !targetCards.some(t => t.id === c.id));
+      const totalRemaining = remainingCards.length;
+
+      // Distribute remaining cards evenly across the back/sides arc of the orbit ellipse
+      // Starting from left side around the rear top to right side
+      const startAngle = 2.85; // ~163 degrees (left rear)
+      const arcSpan = Math.PI * 2 - 2.5; // ~216 degrees span across rear
+
+      for (let k = 0; k < totalRemaining; k++) {
+        const theta = startAngle + (k / Math.max(1, totalRemaining - 1)) * arcSpan;
+        const x = cx + Math.cos(theta) * rx;
+        const y = cy + Math.sin(theta) * ry;
+        const depth = Math.sin(theta); // Between -1.0 and 0.25 (behind the front cards)
+        const scale = 0.58 + (depth + 1) * 0.16; // ~0.58 to 0.78
+        const alpha = 0.42 + (depth + 1) * 0.22; // ~0.42 to 0.65
+
+        cardItems.push({
+          card: remainingCards[k],
+          x,
+          y,
+          depth,
+          scale,
+          alpha,
+          highlighted: false
+        });
+      }
+
+      // 2. Add the 3 chosen result cards sitting in front directly above the 3 spotlights
       if (targetCards && targetCards.length === 3) {
         for (let i = 0; i < 3; i++) {
-          this.drawMiniCard(ctx, {
+          cardItems.push({
             card: targetCards[i],
             x: slotXPositions[i],
             y: cardYPositions[i],
-            depth: 1.0,
+            depth: 1.0 + i * 0.01, // Foreground depth
             scale: 1.05,
             alpha: 1.0,
             highlighted: true
           });
         }
+      }
+
+      // 3. Sort by depth (back cards first, 3 winning cards in front)
+      cardItems.sort((a, b) => a.depth - b.depth);
+
+      for (let i = 0; i < cardItems.length; i++) {
+        this.drawMiniCard(ctx, cardItems[i]);
       }
     }
   }
@@ -639,6 +737,10 @@ export class UpgradeSystem {
    */
   renderCards(cards, player) {
     this.cardsContainerEl.innerHTML = '';
+    this.currentCards = cards;
+    this.selectedIndex = 0;
+    this.isSelecting = true;
+    this.player = player;
 
     cards.forEach((card, index) => {
       const cardEl = document.createElement('div');
@@ -651,20 +753,140 @@ export class UpgradeSystem {
         <div class="card-icon">${card.icon}</div>
         <h3 class="card-title">${card.title}</h3>
         <p class="card-desc">${card.description}</p>
-        <button class="card-btn" id="card-btn-${index}">CHỌN</button>
       `;
 
-      cardEl.addEventListener('click', () => {
-        soundManager.playSelect();
-        card.apply(player, this.game);
-        this.hide();
-        if (this.onSelectCallback) {
-          this.onSelectCallback(card);
+      cardEl.addEventListener('mouseenter', () => {
+        this.focusCardByIndex(index);
+      });
+
+      cardEl.addEventListener('mousemove', (e) => {
+        if (this.lastMouseX !== e.clientX || this.lastMouseY !== e.clientY) {
+          this.lastMouseX = e.clientX;
+          this.lastMouseY = e.clientY;
+          if (this.selectedIndex !== index) {
+            this.focusCardByIndex(index);
+          }
         }
+      });
+
+      cardEl.addEventListener('click', () => {
+        this.selectCardByIndex(index);
       });
 
       this.cardsContainerEl.appendChild(cardEl);
     });
+
+    this.updateFocusedCard();
+  }
+
+  /**
+   * Moves focus to the card without selecting/confirming
+   */
+  focusCardByIndex(index) {
+    if (index < 0 || index >= this.currentCards.length) return;
+    if (this.selectedIndex !== index) {
+      soundManager.playWheelTick();
+    }
+    this.selectedIndex = index;
+    this.updateFocusedCard();
+  }
+
+  /**
+   * Applies card upgrade and cleans up modal
+   */
+  selectCardByIndex(index) {
+    if (index < 0 || index >= this.currentCards.length) return;
+    const card = this.currentCards[index];
+    if (!card) return;
+
+    this.isSelecting = false;
+    soundManager.playSelect();
+    card.apply(this.player, this.game);
+    this.hide();
+    if (this.onSelectCallback) {
+      this.onSelectCallback(card);
+    }
+  }
+
+  /**
+   * Updates visual focus on the cards for keyboard and mouse navigation
+   */
+  updateFocusedCard() {
+    const cards = this.cardsContainerEl.children;
+    for (let i = 0; i < cards.length; i++) {
+      const el = cards[i];
+      if (i === this.selectedIndex) {
+        el.classList.add('selected-card', 'keyboard-focused');
+      } else {
+        el.classList.remove('selected-card', 'keyboard-focused');
+      }
+    }
+  }
+
+  /**
+   * Handles keyboard input when Level Up modal is active:
+   * Keys 1, 2, 3 and Arrows only JUMP focus to that card (not choose yet).
+   * Key ENTER or SPACE confirms and selects the card.
+   */
+  handleKeyDown(e) {
+    if (!this.isSelecting || this.currentCards.length === 0) return false;
+
+    const key = e.key ? e.key.toLowerCase() : '';
+    const code = e.code || '';
+
+    // Phím 1: Chỉ nhảy sang thẻ 1 (chưa chọn)
+    if (key === '1' || code === 'Digit1' || code === 'Numpad1') {
+      this.focusCardByIndex(0);
+      return true;
+    }
+
+    // Phím 2: Chỉ nhảy sang thẻ 2 (chưa chọn)
+    if (key === '2' || code === 'Digit2' || code === 'Numpad2') {
+      this.focusCardByIndex(1);
+      return true;
+    }
+
+    // Phím 3: Chỉ nhảy sang thẻ 3 (chưa chọn)
+    if (key === '3' || code === 'Digit3' || code === 'Numpad3') {
+      this.focusCardByIndex(2);
+      return true;
+    }
+
+    // Phím điều hướng Trái / A
+    if (key === 'arrowleft' || code === 'ArrowLeft' || key === 'a' || code === 'KeyA') {
+      const newIdx = (this.selectedIndex - 1 + this.currentCards.length) % this.currentCards.length;
+      this.focusCardByIndex(newIdx);
+      return true;
+    }
+
+    // Phím điều hướng Phải / D
+    if (key === 'arrowright' || code === 'ArrowRight' || key === 'd' || code === 'KeyD') {
+      const newIdx = (this.selectedIndex + 1) % this.currentCards.length;
+      this.focusCardByIndex(newIdx);
+      return true;
+    }
+
+    // Phím điều hướng Lên / W
+    if (key === 'arrowup' || code === 'ArrowUp' || key === 'w' || code === 'KeyW') {
+      const newIdx = (this.selectedIndex - 1 + this.currentCards.length) % this.currentCards.length;
+      this.focusCardByIndex(newIdx);
+      return true;
+    }
+
+    // Phím điều hướng Xuống / S
+    if (key === 'arrowdown' || code === 'ArrowDown' || key === 's' || code === 'KeyS') {
+      const newIdx = (this.selectedIndex + 1) % this.currentCards.length;
+      this.focusCardByIndex(newIdx);
+      return true;
+    }
+
+    // Phím ENTER hoặc SPACE: Chốt chọn thẻ đang focus
+    if (key === 'enter' || code === 'Enter' || code === 'NumpadEnter' || key === ' ' || code === 'Space') {
+      this.selectCardByIndex(this.selectedIndex);
+      return true;
+    }
+
+    return false;
   }
 
   hide() {
@@ -672,7 +894,11 @@ export class UpgradeSystem {
       cancelAnimationFrame(this.orbitAnimId);
       this.orbitAnimId = null;
     }
+    this.isSelecting = false;
+    this.currentCards = [];
     this.modalEl.classList.remove('visible');
     this.modalEl.classList.add('hidden');
   }
 }
+
+
