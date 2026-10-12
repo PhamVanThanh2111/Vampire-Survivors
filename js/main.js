@@ -4,11 +4,13 @@
 
 import { Game } from './game.js';
 import { soundManager } from './utils/sound.js';
+import { UPGRADE_POOL } from './systems/upgrade.js';
 
 window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('game-canvas');
   const game = new Game(canvas);
   window.game = game;
+  window.UPGRADE_POOL = UPGRADE_POOL;
 
   // Initialize AudioContext upon any user interaction
   const initAudio = () => {
@@ -55,6 +57,28 @@ window.addEventListener('DOMContentLoaded', () => {
     if (key === '5') {
       game.player.level = 5;
       game.triggerLevelUp();
+    }
+
+    // Normal Level Up shortcut for instant testing (Roll 3 thẻ thường)
+    if (key === '6' || key === 'u') {
+      game.player.level = game.player.level === 4 ? 6 : game.player.level + 1;
+      if (game.player.level % 5 === 0) game.player.level++;
+      game.triggerLevelUp();
+    }
+
+    // Instant Lifesteal shortcut for testing (Phím L)
+    if (key === 'l') {
+      const card = UPGRADE_POOL.find(c => c.id === 'lifesteal_effect');
+      if (card && (!card.isAvailable || card.isAvailable(game.player))) {
+        card.apply(game.player, game);
+        game.recordAcquiredUpgrade(card);
+        game.renderPlayerStats(true);
+        soundManager.playSelect();
+        if (game.particles) {
+          game.particles.addFloatingText(game.player.x, game.player.y - 25, '+1% Hút Máu (Lifesteal)!', '#f43f5e', true);
+          game.particles.spark(game.player.x, game.player.y, '#f43f5e', 8);
+        }
+      }
     }
   });
 

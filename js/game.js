@@ -93,6 +93,7 @@ export class Game {
     this.statBladeSpeedEl = document.getElementById('stat-blade-speed');
     this.statCooldownEl = document.getElementById('stat-cooldown');
     this.statMagnetEl = document.getElementById('stat-magnet');
+    this.statLifestealEl = document.getElementById('stat-lifesteal');
     this.playerEffectsListEl = document.getElementById('player-effects-list');
     this.lastEffectsKey = '';
 
@@ -394,6 +395,15 @@ export class Game {
     if (this.statMagnetEl) {
       this.statMagnetEl.textContent = `${Math.round(this.player.magnetRadius)} px`;
     }
+    if (this.statLifestealEl) {
+      const lifestealPct = Math.round((this.player.lifesteal || 0) * 100);
+      this.statLifestealEl.textContent = `${lifestealPct}%`;
+      if (lifestealPct > 0) {
+        this.statLifestealEl.style.color = '#f43f5e';
+      } else {
+        this.statLifestealEl.style.color = '';
+      }
+    }
 
     // 2. Update Status Effects List with interactive hover tooltips
     if (!this.playerEffectsListEl) return;
@@ -403,8 +413,9 @@ export class Game {
     const freezePct = Math.round(this.player.freezeChance * 100);
     const bleedPct = Math.round(this.player.bleedChance * 100);
     const stunPct = Math.round(this.player.stunChance * 100);
+    const lifestealPct = Math.round((this.player.lifesteal || 0) * 100);
 
-    const effectsKey = `${freezePct}_${bleedPct}_${this.player.bleedDamage}_${stunPct}_${hasBomb}_${hasAllStats}`;
+    const effectsKey = `${freezePct}_${bleedPct}_${this.player.bleedDamage}_${stunPct}_${lifestealPct}_${hasBomb}_${hasAllStats}`;
     if (!force && this.lastEffectsKey === effectsKey) {
       return; // No change in effects, avoid rebuilding DOM so hover state is rock-solid!
     }
@@ -412,6 +423,31 @@ export class Game {
 
     let itemsHtml = '';
     let count = 0;
+
+    // Lifesteal Effect
+    if (this.player.lifesteal > 0) {
+      count++;
+      itemsHtml += `
+        <div class="effect-badge-item lifesteal" tabindex="0">
+          <div class="effect-badge-header">
+            <span class="effect-badge-icon">🩸</span>
+            <span class="effect-badge-name">Hút Máu</span>
+            <span class="effect-badge-rate">+${lifestealPct}%</span>
+          </div>
+          <div class="effect-tooltip">
+            <div class="tooltip-header lifesteal">
+              <span class="tooltip-icon">🩸</span>
+              <span class="tooltip-title">HÚT MÁU (LIFESTEAL)</span>
+            </div>
+            <p class="tooltip-desc">Đòn đánh trúng kẻ địch sẽ chuyển hóa <strong>${lifestealPct}% lượng sát thương gây ra</strong> thành sinh lực hồi phục trực tiếp cho nhân vật.</p>
+            <div class="tooltip-stats">
+              <div class="tooltip-stat-row"><span>Tỉ lệ hồi máu:</span><strong>+${lifestealPct}% sát thương</strong></div>
+              <div class="tooltip-stat-row"><span>Áp dụng cho:</span><strong>Magic Bolt & Orbiting Shield</strong></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     // Freeze / Slow Effect
     if (this.player.freezeChance > 0) {

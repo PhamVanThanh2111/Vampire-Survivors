@@ -1264,6 +1264,13 @@ body {
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
 }
 
+.effect-badge-item.lifesteal {
+  border-color: rgba(244, 63, 94, 0.45);
+}
+.effect-badge-item.lifesteal:hover {
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.35);
+}
+
 .effect-badge-item.stun {
   border-color: rgba(245, 158, 11, 0.45);
 }
@@ -1322,6 +1329,10 @@ body {
 .effect-badge-item.bleed .effect-badge-rate {
   color: #f87171;
   background: rgba(239, 68, 68, 0.15);
+}
+.effect-badge-item.lifesteal .effect-badge-rate {
+  color: #fb7185;
+  background: rgba(244, 63, 94, 0.15);
 }
 .effect-badge-item.stun .effect-badge-rate {
   color: #fbbf24;
@@ -1388,6 +1399,7 @@ body {
 
 .tooltip-header.freeze { color: #38bdf8; }
 .tooltip-header.bleed { color: #f87171; }
+.tooltip-header.lifesteal { color: #fb7185; }
 .tooltip-header.stun { color: #fbbf24; }
 .tooltip-header.bomb { color: #ef4444; }
 .tooltip-header.all-stats { color: #c084fc; }

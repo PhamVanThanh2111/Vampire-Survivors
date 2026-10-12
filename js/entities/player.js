@@ -44,6 +44,9 @@ export class Player {
     this.stunChance = 0.0; // Chance to stun enemy
     this.stunDuration = 1.0; // Stun duration in seconds
 
+    // Lifesteal (Hồi máu từ đòn đánh)
+    this.lifesteal = 0.0; // Tỉ lệ hút máu (0.01 = 1%)
+
     // Orbiting Blades
     this.orbitingBlades = [];
     this.bladeCount = 1;

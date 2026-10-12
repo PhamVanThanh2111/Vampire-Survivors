@@ -50,6 +50,9 @@ export class CombatSystem {
           // Apply player status effects (Bleed, Freeze, Stun)
           this.applyPlayerStatusEffects(player, enemy);
 
+          // Apply player lifesteal
+          this.applyPlayerLifesteal(player, damage);
+
           // Visuals
           this.particles.spark(proj.x, proj.y, '#38bdf8', 5);
           this.particles.addFloatingText(enemy.x, enemy.y, `${damage}`, isCrit ? '#f43f5e' : '#facc15', isCrit);
@@ -81,6 +84,9 @@ export class CombatSystem {
 
           // Apply player status effects (Bleed, Freeze, Stun)
           this.applyPlayerStatusEffects(player, enemy);
+
+          // Apply player lifesteal
+          this.applyPlayerLifesteal(player, damage);
 
           soundManager.playBladeHit();
           this.particles.spark(blade.x, blade.y, '#f59e0b', 4);
@@ -194,6 +200,27 @@ export class CombatSystem {
     if (player.stunChance > 0 && Math.random() < player.stunChance) {
       enemy.applyStun(player.stunDuration);
       this.particles.spark(enemy.x, enemy.y, '#facc15', 4);
+    }
+  }
+
+  /**
+   * Resolves player lifesteal on successful hits
+   */
+  applyPlayerLifesteal(player, damage) {
+    if (!player.lifesteal || player.lifesteal <= 0 || player.hp >= player.maxHp) return;
+
+    const healAmount = damage * player.lifesteal;
+    if (healAmount <= 0) return;
+
+    player.heal(healAmount);
+
+    // Subtle green heal text & spark over player (throttled to avoid visual clutter)
+    const now = performance.now();
+    if (!player._lastLifestealFx || now - player._lastLifestealFx > 300) {
+      player._lastLifestealFx = now;
+      const displayVal = healAmount >= 1 ? `+${Math.round(healAmount)}` : `+${healAmount.toFixed(1)}`;
+      this.particles.addFloatingText(player.x, player.y - 18, displayVal, '#10b981', false);
+      this.particles.spark(player.x, player.y, '#10b981', 3);
     }
   }
 }

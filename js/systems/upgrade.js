@@ -67,6 +67,19 @@ export const UPGRADE_POOL = [
     }
   },
   {
+    id: 'lifesteal_effect',
+    title: '+1% Hút Máu (Lifesteal)',
+    icon: '🩸',
+    type: 'SURVIVAL',
+    description: 'Hồi phục sinh lực tương đương 1% lượng sát thương gây ra từ mọi đòn đánh trúng kẻ địch.',
+    isAvailable(player) {
+      return (player.lifesteal || 0) < 0.05; // Cho phép cộng dồn tối đa 5%
+    },
+    apply(player) {
+      player.lifesteal = parseFloat(((player.lifesteal || 0) + 0.01).toFixed(3));
+    }
+  },
+  {
     id: 'magnet_boost',
     title: '+50% Bán kính hút Gem (Magnet)',
     icon: '🧲',
@@ -260,7 +273,7 @@ export class UpgradeSystem {
   }
 
   /**
-   * Generates 3 unique upgrades from the pool.
+   * Generates 3 unique upgrades from the pool using unbiased Fisher-Yates shuffle.
    * Thẻ SPECIAL chỉ có tỉ lệ xuất hiện (45%) tại các mốc Cấp 5, 10, 15... (không chắc chắn 100%).
    */
   getRandomUpgrades(player, count = 3) {
@@ -274,7 +287,7 @@ export class UpgradeSystem {
     // Fallback if available cards are fewer than count (when many cards reach max cap)
     if (normalPool.length < count) {
       const repeatables = UPGRADE_POOL.filter(up =>
-        ['damage_boost', 'heal_hp', 'speed_boost', 'crit_damage_boost'].includes(up.id)
+        ['damage_boost', 'heal_hp', 'speed_boost', 'crit_damage_boost', 'lifesteal_effect'].includes(up.id)
       );
       const poolIds = new Set(normalPool.map(u => u.id));
       for (const rep of repeatables) {
@@ -296,22 +309,32 @@ export class UpgradeSystem {
     const specialRollChance = 0.45;
     const shouldIncludeSpecial = isMilestone && specialPool.length > 0 && Math.random() < specialRollChance;
 
+    // Unbiased Fisher-Yates shuffle
+    const shuffledNormal = [...normalPool];
+    for (let i = shuffledNormal.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledNormal[i], shuffledNormal[j]] = [shuffledNormal[j], shuffledNormal[i]];
+    }
+
     if (shouldIncludeSpecial) {
       // Pick 1 Special card
       const randomSpecial = specialPool[Math.floor(Math.random() * specialPool.length)];
       chosenCards.push(randomSpecial);
 
-      // Pick the remaining 2 cards from the normal pool
-      const shuffledNormal = [...normalPool].sort(() => 0.5 - Math.random());
+      // Pick the remaining cards from normal pool
       chosenCards.push(...shuffledNormal.slice(0, count - 1));
     } else {
-      // Pick all 3 cards from normal pool
-      const shuffledNormal = [...normalPool].sort(() => 0.5 - Math.random());
+      // Pick all cards from normal pool
       chosenCards = shuffledNormal.slice(0, Math.min(count, shuffledNormal.length));
     }
 
-    // Shuffle final 3 cards so Special card isn't always in slot 1
-    return chosenCards.sort(() => 0.5 - Math.random());
+    // Final shuffle so Special card isn't always in slot 1
+    for (let i = chosenCards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chosenCards[i], chosenCards[j]] = [chosenCards[j], chosenCards[i]];
+    }
+
+    return chosenCards;
   }
 
   /**
