@@ -18,7 +18,7 @@ export class FireLordBoss extends Boss {
       maxBars: 2, // 2 health bars (x2)
       barMaxHp: 500, // 500 HP per bar = 1,000 Total HP as requested
       speed: 60,
-      radius: 38,
+      radius: 46, // Increased radius for an imposing, towering demon lord presence
       color: '#dc2626',
       touchDamage: 26,
       expValue: 500,
@@ -42,6 +42,18 @@ export class FireLordBoss extends Boss {
 
     // Base enemy movement & separation
     super.update(dt, player, spatialGrid, bounds);
+
+    // Ambient floating embers & magma sparks around the Boss
+    if (game && game.particles && typeof game.particles.spark === 'function') {
+      if (Math.random() < 0.35) {
+        game.particles.spark(
+          this.x + Vec2.randomRange(-this.radius * 0.8, this.radius * 0.8),
+          this.y + Vec2.randomRange(-this.radius * 0.8, this.radius * 0.8),
+          this.currentBar === 1 ? '#fef08a' : '#f97316',
+          1
+        );
+      }
+    }
 
     // Cast Timer
     this.skillTimer -= dt;
@@ -112,83 +124,232 @@ export class FireLordBoss extends Boss {
     if (this.isDead) return;
 
     const isFlashing = this.hitFlashTimer > 0;
-    const pulseScale = 1.0 + Math.sin(this.flamePulse) * 0.06;
+    const isEnraged = this.currentBar === 1;
+    const pulseScale = 1.0 + Math.sin(this.flamePulse) * (isEnraged ? 0.08 : 0.05);
 
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(pulseScale, pulseScale);
 
-    // 1. Fiery Outer Glow Aura
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+    // 1. Hellfire Outer Aura (Multi-layered burning radiant heatwaves)
+    const auraR = this.radius + (isEnraged ? 24 : 18);
+    const grad = ctx.createRadialGradient(0, 0, this.radius * 0.4, 0, 0, auraR);
+    grad.addColorStop(0, isEnraged ? 'rgba(239, 68, 68, 0.42)' : 'rgba(249, 115, 22, 0.35)');
+    grad.addColorStop(0.65, isEnraged ? 'rgba(185, 28, 28, 0.22)' : 'rgba(239, 68, 68, 0.16)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(0, 0, this.radius + 12, 0, Math.PI * 2);
+    ctx.arc(0, 0, auraR, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.35)';
+    // 2. Rotating Hellfire Orbiting Embers / Magma Orbs (Swirling flame wisps)
+    const orbCount = isEnraged ? 4 : 3;
+    const orbRadius = this.radius + 16;
+    for (let i = 0; i < orbCount; i++) {
+      const angle = this.flamePulse * (isEnraged ? 1.8 : 1.2) + (i * Math.PI * 2) / orbCount;
+      const ox = Math.cos(angle) * orbRadius;
+      const oy = Math.sin(angle) * (orbRadius * 0.65) + 6; // Tilted 3D orbit
+      
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(ox, oy, isEnraged ? 4.5 : 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.65)';
+      ctx.beginPath();
+      ctx.arc(ox, oy, isEnraged ? 8 : 6.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3. Ground Heavy Obsidian Shadow with Magma Rim
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
     ctx.beginPath();
-    ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2);
+    ctx.ellipse(0, this.radius * 0.95, this.radius * 1.25, this.radius * 0.48, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Heavy Drop Shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    // 4. Heavy Spiked Shoulder Pauldrons (Giáp vai gai nhọn Obsidian)
+    ctx.fillStyle = isFlashing ? '#ffffff' : (isEnraged ? '#450a0a' : '#1c1917');
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+
+    // Left shoulder spike
     ctx.beginPath();
-    ctx.ellipse(0, this.radius * 0.85, this.radius * 1.1, this.radius * 0.45, 0, 0, Math.PI * 2);
+    ctx.moveTo(-this.radius * 0.65, -this.radius * 0.2);
+    ctx.lineTo(-this.radius * 1.35, -this.radius * 0.5);
+    ctx.lineTo(-this.radius * 0.85, this.radius * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Right shoulder spike
+    ctx.beginPath();
+    ctx.moveTo(this.radius * 0.65, -this.radius * 0.2);
+    ctx.lineTo(this.radius * 1.35, -this.radius * 0.5);
+    ctx.lineTo(this.radius * 0.85, this.radius * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 5. Epic Giant Buffalo Horns (Cặp sừng trâu uốn lượn uy dũng vươn cao)
+    const hornBaseColor = isFlashing ? '#ffffff' : (isEnraged ? '#262626' : '#171717');
+    
+    // Left Buffalo Horn
+    ctx.fillStyle = hornBaseColor;
+    ctx.beginPath();
+    ctx.moveTo(-this.radius * 0.45, -this.radius * 0.6);
+    // Sweeps wide out, then curves sharply upward
+    ctx.bezierCurveTo(
+      -this.radius * 1.3, -this.radius * 0.85,
+      -this.radius * 1.65, -this.radius * 1.7,
+      -this.radius * 0.5, -this.radius * 1.85
+    );
+    ctx.bezierCurveTo(
+      -this.radius * 1.15, -this.radius * 1.45,
+      -this.radius * 0.8, -this.radius * 0.85,
+      -this.radius * 0.15, -this.radius * 0.7
+    );
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Fiery molten tip on left horn
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.moveTo(-this.radius * 0.85, -this.radius * 1.6);
+    ctx.lineTo(-this.radius * 0.5, -this.radius * 1.85);
+    ctx.lineTo(-this.radius * 0.62, -this.radius * 1.5);
+    ctx.closePath();
     ctx.fill();
 
-    // 3. Main Molten Demon Body
-    ctx.fillStyle = isFlashing ? '#ffffff' : (this.currentBar === 1 ? '#b91c1c' : '#dc2626');
+    // Right Buffalo Horn
+    ctx.fillStyle = hornBaseColor;
+    ctx.beginPath();
+    ctx.moveTo(this.radius * 0.45, -this.radius * 0.6);
+    ctx.bezierCurveTo(
+      this.radius * 1.3, -this.radius * 0.85,
+      this.radius * 1.65, -this.radius * 1.7,
+      this.radius * 0.5, -this.radius * 1.85
+    );
+    ctx.bezierCurveTo(
+      this.radius * 1.15, -this.radius * 1.45,
+      this.radius * 0.8, -this.radius * 0.85,
+      this.radius * 0.15, -this.radius * 0.7
+    );
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Fiery molten tip on right horn
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.moveTo(this.radius * 0.85, -this.radius * 1.6);
+    ctx.lineTo(this.radius * 0.5, -this.radius * 1.85);
+    ctx.lineTo(this.radius * 0.62, -this.radius * 1.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // 6. Main Heavy Armored Demon Body
+    ctx.fillStyle = isFlashing ? '#ffffff' : (isEnraged ? '#991b1b' : '#b91c1c');
     ctx.beginPath();
     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
     ctx.fill();
 
     // Dark Obsidian Armor rim
-    ctx.strokeStyle = '#450a0a';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = isEnraged ? '#f97316' : '#292524';
+    ctx.lineWidth = isEnraged ? 4.5 : 4.0;
     ctx.stroke();
 
-    // 4. Burning Horns / Crown
-    ctx.fillStyle = '#f97316';
-    // Left horn
+    // 7. Glowing Magma Veins / Cracks on Body (Vết nứt dung nham rực sáng)
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 2.4;
     ctx.beginPath();
-    ctx.moveTo(-this.radius * 0.6, -this.radius * 0.5);
-    ctx.quadraticCurveTo(-this.radius * 1.1, -this.radius * 1.3, -this.radius * 0.2, -this.radius * 0.9);
+    ctx.moveTo(0, -this.radius * 0.4);
+    ctx.lineTo(-7, -4);
+    ctx.lineTo(8, 12);
+    ctx.lineTo(-2, this.radius * 0.68);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-this.radius * 0.5, 2);
+    ctx.lineTo(-12, 10);
+    ctx.moveTo(this.radius * 0.5, 2);
+    ctx.lineTo(12, 10);
+    ctx.stroke();
+
+    // 8. Forehead Demonic Crest (Vương miện sừng giữa trán)
+    ctx.fillStyle = '#ea580c';
+    ctx.beginPath();
+    ctx.moveTo(-11, -this.radius * 0.62);
+    ctx.lineTo(0, -this.radius * 1.05);
+    ctx.lineTo(11, -this.radius * 0.62);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 9. Menacing Angled Demonic Eyes with Flame Brows (Mắt quỷ hung tợn)
+    const eyeColor = isFlashing ? '#ffffff' : (isEnraged ? '#fef08a' : '#ffffff');
+    ctx.fillStyle = eyeColor;
+    
+    // Left eye (angled sharply)
+    ctx.beginPath();
+    ctx.moveTo(-22, -9);
+    ctx.lineTo(-10, -15);
+    ctx.lineTo(-8, -7);
+    ctx.lineTo(-20, -4);
     ctx.closePath();
     ctx.fill();
 
-    // Right horn
+    // Right eye (angled sharply)
     ctx.beginPath();
-    ctx.moveTo(this.radius * 0.6, -this.radius * 0.5);
-    ctx.quadraticCurveTo(this.radius * 1.1, -this.radius * 1.3, this.radius * 0.2, -this.radius * 0.9);
+    ctx.moveTo(22, -9);
+    ctx.lineTo(10, -15);
+    ctx.lineTo(8, -7);
+    ctx.lineTo(20, -4);
     ctx.closePath();
     ctx.fill();
 
-    // 5. Molten Glowing Core
-    ctx.fillStyle = '#fef08a';
+    // Glowing Pupils
+    ctx.fillStyle = isEnraged ? '#dc2626' : '#ea580c';
     ctx.beginPath();
-    ctx.arc(0, 4, 14, 0, Math.PI * 2);
+    ctx.arc(-14, -9, 2.5, 0, Math.PI * 2);
+    ctx.arc(14, -9, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 6. Glowing Eyes
-    ctx.fillStyle = '#ffffff';
+    // 10. Molten Heart Core (Trái tim dung nham trung tâm)
+    const corePulse = 13 + Math.sin(this.flamePulse * 2) * 3;
+    const coreGrad = ctx.createRadialGradient(0, 10, 2, 0, 10, corePulse);
+    coreGrad.addColorStop(0, '#fef08a');
+    coreGrad.addColorStop(0.5, '#f97316');
+    coreGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = coreGrad;
     ctx.beginPath();
-    ctx.ellipse(-11, -8, 4, 6, -0.2, 0, Math.PI * 2);
-    ctx.ellipse(11, -8, 4, 6, 0.2, 0, Math.PI * 2);
+    ctx.arc(0, 10, corePulse, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
 
-    // 7. Overhead Boss Name & Mini Bar
+    // 11. Overhead Boss Name & Multiplier Status
     ctx.save();
     ctx.textAlign = 'center';
-    ctx.font = 'bold 12px "Segoe UI", Roboto, sans-serif';
+    ctx.font = 'bold 13px "Segoe UI", Roboto, sans-serif';
     ctx.fillStyle = '#fef08a';
-    ctx.fillText(`🐂 ${this.name}`, this.x, this.y - this.radius - 16);
+    ctx.shadowColor = '#dc2626';
+    ctx.shadowBlur = 6;
+    ctx.fillText(`🐂 ${this.name}`, this.x, this.y - this.radius - 20);
 
     // Multiplier text
     if (this.currentBar > 1) {
       ctx.fillStyle = '#ef4444';
       ctx.font = 'bold 11px "Segoe UI", Roboto, sans-serif';
-      ctx.fillText(`(x${this.currentBar} HP)`, this.x, this.y - this.radius - 4);
+      ctx.fillText(`(x${this.currentBar} HP)`, this.x, this.y - this.radius - 6);
     }
     ctx.restore();
   }
