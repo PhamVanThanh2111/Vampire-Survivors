@@ -80,6 +80,21 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }
     }
+
+    // Instant Max HP boost shortcut for testing (Phím H)
+    if (key === 'h') {
+      const card = UPGRADE_POOL.find(c => c.id === 'max_hp_boost');
+      if (card && (!card.isAvailable || card.isAvailable(game.player))) {
+        card.apply(game.player, game);
+        game.recordAcquiredUpgrade(card);
+        game.renderPlayerStats(true);
+        soundManager.playSelect();
+        if (game.particles) {
+          game.particles.addFloatingText(game.player.x, game.player.y - 25, `+40 Máu tối đa! (${Math.ceil(game.player.hp)}/${game.player.maxHp})`, '#10b981', true);
+          game.particles.spark(game.player.x, game.player.y, '#10b981', 8);
+        }
+      }
+    }
   });
 
   window.addEventListener('keyup', (e) => {

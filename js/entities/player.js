@@ -88,6 +88,15 @@ export class Player {
     this.hp = Math.min(this.maxHp, this.hp + amount);
   }
 
+  increaseMaxHp(amount) {
+    if (amount <= 0) return;
+    // Calculate current HP percentage ratio (e.g. 100/100 = 1.0, 50/100 = 0.5)
+    const currentRatio = this.maxHp > 0 ? this.hp / this.maxHp : 1.0;
+    this.maxHp += amount;
+    // Preserve exact percentage of new max HP (e.g. 140 * 1.0 = 140, 140 * 0.5 = 70)
+    this.hp = Math.round(this.maxHp * currentRatio);
+  }
+
   addExp(amount) {
     this.exp += amount;
     if (this.exp >= this.expToNextLevel) {

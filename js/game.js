@@ -85,6 +85,7 @@ export class Game {
 
     // Right-Edge Player Stats & Effects Panel Cache
     this.statsPanelEl = document.getElementById('player-stats-panel');
+    this.statMaxHpEl = document.getElementById('stat-max-hp');
     this.statSpeedEl = document.getElementById('stat-speed');
     this.statDamageEl = document.getElementById('stat-damage');
     this.statCritChanceEl = document.getElementById('stat-crit-chance');
@@ -356,10 +357,18 @@ export class Game {
     this.updatePlayerStatsHUD();
   }
 
+  renderPlayerStats(force = false) {
+    this.updatePlayerStatsHUD(force);
+    this.updateHUD();
+  }
+
   updatePlayerStatsHUD(force = false) {
     if (!this.player) return;
 
     // 1. Update Numeric Stats
+    if (this.statMaxHpEl) {
+      this.statMaxHpEl.textContent = `${this.player.maxHp} HP`;
+    }
     if (this.statSpeedEl) {
       this.statSpeedEl.textContent = `${Math.round(this.player.speed)} px/s`;
     }

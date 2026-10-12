@@ -67,6 +67,19 @@ export const UPGRADE_POOL = [
     }
   },
   {
+    id: 'max_hp_boost',
+    title: '+40 Máu tối đa',
+    icon: '❤️‍🔥',
+    type: 'SURVIVAL',
+    description: 'Tăng vĩnh viễn 40 điểm Máu tối đa và bảo toàn nguyên vẹn % lượng máu hiện tại.',
+    isAvailable(player) {
+      return player.maxHp < 400;
+    },
+    apply(player) {
+      player.increaseMaxHp(40);
+    }
+  },
+  {
     id: 'lifesteal_effect',
     title: '+1% Hút Máu (Lifesteal)',
     icon: '🩸',
@@ -287,7 +300,7 @@ export class UpgradeSystem {
     // Fallback if available cards are fewer than count (when many cards reach max cap)
     if (normalPool.length < count) {
       const repeatables = UPGRADE_POOL.filter(up =>
-        ['damage_boost', 'heal_hp', 'speed_boost', 'crit_damage_boost', 'lifesteal_effect'].includes(up.id)
+        ['damage_boost', 'heal_hp', 'max_hp_boost', 'speed_boost', 'crit_damage_boost', 'lifesteal_effect'].includes(up.id)
       );
       const poolIds = new Set(normalPool.map(u => u.id));
       for (const rep of repeatables) {
