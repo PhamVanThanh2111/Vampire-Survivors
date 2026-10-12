@@ -160,6 +160,40 @@ class SoundSystem {
   }
 
   /**
+   * Item / Power-up pickup sound (Chime arpeggio)
+   */
+  playItemPickup() {
+    if (this.isMuted) return;
+    this.ensureContext();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, t); // D5
+    osc1.frequency.exponentialRampToValueAtTime(1174.66, t + 0.14); // D6
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(739.99, t + 0.05); // F#5
+    osc2.frequency.exponentialRampToValueAtTime(1479.98, t + 0.19); // F#6
+
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc1.start(t);
+    osc1.stop(t + 0.14);
+    osc2.start(t + 0.05);
+    osc2.stop(t + 0.22);
+  }
+
+  /**
    * Level up sound (Ascending celebratory arpeggio)
    */
   playLevelUp() {

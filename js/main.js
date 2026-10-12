@@ -95,6 +95,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }
     }
+
+    // Spawn Drop Item shortcut for testing (Phím I)
+    if (key === 'i') {
+      const types = ['health', 'damage', 'max_hp', 'speed', 'vacuum', 'freeze'];
+      const randomType = types[Math.floor(Math.random() * types.length)];
+      game.spawnDropItem(game.player.x + 40, game.player.y + 15, randomType);
+      soundManager.playShoot();
+      if (game.particles) {
+        game.particles.spark(game.player.x + 40, game.player.y + 15, '#facc15', 6);
+      }
+    }
   });
 
   window.addEventListener('keyup', (e) => {
@@ -170,8 +181,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Game Loop with requestAnimationFrame
   function gameLoop(timestamp) {
-    game.update(timestamp);
-    game.render();
+    try {
+      game.update(timestamp);
+      game.render();
+    } catch (err) {
+      console.error('Game loop error:', err);
+    }
     requestAnimationFrame(gameLoop);
   }
 

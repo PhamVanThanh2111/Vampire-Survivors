@@ -109,7 +109,7 @@ export class Bomb {
           if (enemy.isDead) {
             game.killCount++;
             if (game.combat && typeof game.combat.handleEnemyDeath === 'function') {
-              game.combat.handleEnemyDeath(enemy, game.gems);
+              game.combat.handleEnemyDeath(enemy, game.gems, game.items);
             }
             game.enemies.splice(i, 1);
           }

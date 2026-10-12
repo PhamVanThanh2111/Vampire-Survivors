@@ -5,7 +5,8 @@
 import { Vec2 } from '../utils/math.js';
 import { MagicBolt } from '../entities/projectile.js';
 import { Gem } from '../entities/gem.js';
-import { soundManager } from '../utils/sound.js';
+import { DropItem } from '../entities/item.js';
+import { soundManager } from '../utils/sound.js?v=16';
 
 export class CombatSystem {
   constructor(particleManager) {
@@ -15,9 +16,9 @@ export class CombatSystem {
   }
 
   /**
-   * Updates combat routines: auto-firing, projectile collisions, blade impacts, player damage
+   * Updates combat routines: auto-firing, projectile collisions, blade impacts, player damage, items
    */
-  update(dt, player, enemies, projectiles, gems, onLevelUp, onPlayerDied) {
+  update(dt, player, enemies, projectiles, gems, items, onLevelUp, onPlayerDied, gameInstance) {
     // 1. Auto-Weapon 1: Magic Bolt auto-targeting
     if (player.canShootBolt()) {
       const nearestEnemy = this.findNearestEnemy(player, enemies, this.targetRadius);
@@ -58,7 +59,7 @@ export class CombatSystem {
           this.particles.addFloatingText(enemy.x, enemy.y, `${damage}`, isCrit ? '#f43f5e' : '#facc15', isCrit);
 
           if (enemy.isDead) {
-            this.handleEnemyDeath(enemy, gems);
+            this.handleEnemyDeath(enemy, gems, items);
           }
           break; // Projectile hit one enemy and consumed
         }
@@ -93,7 +94,7 @@ export class CombatSystem {
           this.particles.addFloatingText(enemy.x, enemy.y, `${damage}`, '#fbbf24', isCrit);
 
           if (enemy.isDead) {
-            this.handleEnemyDeath(enemy, gems);
+            this.handleEnemyDeath(enemy, gems, items);
           }
         }
       }
@@ -108,7 +109,7 @@ export class CombatSystem {
         this.particles.spark(enemy.x, enemy.y, '#ef4444', 3);
         this.particles.addFloatingText(enemy.x, enemy.y, `${bleedDmg}`, '#f43f5e', false);
         if (isFatal) {
-          this.handleEnemyDeath(enemy, gems);
+          this.handleEnemyDeath(enemy, gems, items);
         }
       });
     }
@@ -151,17 +152,107 @@ export class CombatSystem {
       }
     }
 
+    // 5.5 Item collection & effect resolution
+    if (items) {
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        if (item.isCollected) {
+          this.handleItemPickup(item, player, gems, enemies, gameInstance);
+          items.splice(i, 1);
+        }
+      }
+    }
+
     // Screen shake decay
     if (this.screenShake > 0) {
       this.screenShake = Math.max(0, this.screenShake - dt * 25);
     }
   }
 
-  handleEnemyDeath(enemy, gems) {
+  handleEnemyDeath(enemy, gems, items) {
     soundManager.playEnemyDeath();
     this.particles.explode(enemy.x, enemy.y, enemy.color, 9, 2, 4.5);
     // Drop EXP Gem at enemy position
     gems.push(new Gem(enemy.x, enemy.y, enemy.expValue, enemy.color === '#ef4444' ? '#f43f5e' : '#38bdf8'));
+
+    // Chance to drop a helpful item: ~5.5% for regular enemies, ~15% for Brutes
+    if (items) {
+      const dropChance = enemy.type === 'brute' ? 0.15 : 0.055;
+      if (Math.random() < dropChance) {
+        items.push(DropItem.createRandom(enemy.x, enemy.y));
+      }
+    }
+  }
+
+  /**
+   * Resolves picked up item effects with audio, particles, and floating feedback
+   */
+  handleItemPickup(item, player, gems, enemies, gameInstance) {
+    try {
+      if (soundManager && typeof soundManager.playItemPickup === 'function') {
+        soundManager.playItemPickup();
+      } else if (soundManager && typeof soundManager.playGemPickup === 'function') {
+        soundManager.playGemPickup();
+      }
+    } catch (e) {
+      console.warn('Audio play error:', e);
+    }
+
+    switch (item.type) {
+      case 'health': {
+        const healAmt = 25;
+        player.heal(healAmt);
+        this.particles.spark(item.x, item.y, '#ef4444', 6);
+        this.particles.addFloatingText(player.x, player.y - 20, `+${healAmt} HP`, '#22c55e', true);
+        break;
+      }
+      case 'damage': {
+        player.damageMultiplier = parseFloat((player.damageMultiplier + 0.03).toFixed(3));
+        player.updateBlades();
+        this.particles.spark(item.x, item.y, '#f97316', 7);
+        this.particles.addFloatingText(player.x, player.y - 20, '+3% Sát Thương!', '#f97316', true);
+        break;
+      }
+      case 'max_hp': {
+        player.increaseMaxHp(5);
+        this.particles.spark(item.x, item.y, '#ec4899', 7);
+        this.particles.addFloatingText(player.x, player.y - 20, '+5 Máu Tối Đa!', '#ec4899', true);
+        break;
+      }
+      case 'speed': {
+        player.speed = Math.min(320, player.speed + 4);
+        this.particles.spark(item.x, item.y, '#38bdf8', 6);
+        this.particles.addFloatingText(player.x, player.y - 20, '+4 Tốc Độ!', '#38bdf8', true);
+        break;
+      }
+      case 'vacuum': {
+        if (gems && gems.length > 0) {
+          for (let g = 0; g < gems.length; g++) {
+            gems[g].isAttracted = true;
+            gems[g].speed = 450;
+          }
+        }
+        this.particles.explode(player.x, player.y, '#a855f7', 12, 2, 4);
+        this.particles.addFloatingText(player.x, player.y - 20, '🧲 Hút Toàn Bộ Gem!', '#a855f7', true);
+        break;
+      }
+      case 'freeze': {
+        if (enemies && enemies.length > 0) {
+          for (let e = 0; e < enemies.length; e++) {
+            if (!enemies[e].isDead) {
+              enemies[e].applyFreeze(0.9, 2.5);
+            }
+          }
+        }
+        this.particles.explode(player.x, player.y, '#06b6d4', 12, 2, 4);
+        this.particles.addFloatingText(player.x, player.y - 20, '❄️ Đóng Băng Quái!', '#06b6d4', true);
+        break;
+      }
+    }
+
+    if (gameInstance && typeof gameInstance.renderPlayerStats === 'function') {
+      gameInstance.renderPlayerStats(true);
+    }
   }
 
   findNearestEnemy(player, enemies, maxRadius) {

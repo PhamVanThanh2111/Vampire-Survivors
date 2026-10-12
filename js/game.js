@@ -4,11 +4,12 @@
 
 import { Player } from './entities/player.js';
 import { Bomb } from './entities/bomb.js';
+import { DropItem } from './entities/item.js';
 import { ParticleManager } from './utils/particle.js';
 import { Spawner } from './systems/spawner.js';
 import { CombatSystem } from './systems/combat.js';
 import { UpgradeSystem } from './systems/upgrade.js';
-import { soundManager } from './utils/sound.js';
+import { soundManager } from './utils/sound.js?v=16';
 
 export const GAME_STATE = {
   PLAYING: 'PLAYING',
@@ -56,6 +57,7 @@ export class Game {
     this.projectiles = [];
     this.bombs = [];
     this.gems = [];
+    this.items = [];
 
     // HUD Elements Cache
     this.hudHpBar = document.getElementById('hp-bar-fill');
@@ -108,6 +110,7 @@ export class Game {
     this.projectiles = [];
     this.bombs = [];
     this.gems = [];
+    this.items = [];
     this.particles.clear();
     this.spawner.reset();
     this.acquiredUpgrades = [];
@@ -128,6 +131,12 @@ export class Game {
   spawnBomb(x, y) {
     const bomb = new Bomb(x, y, 350, 240, this.player);
     this.bombs.push(bomb);
+  }
+
+  spawnDropItem(x, y, type = null) {
+    const item = type ? new DropItem(x, y, type) : DropItem.createRandom(x, y);
+    this.items.push(item);
+    return item;
   }
 
   activateSpecialSkill(keyNumber) {
@@ -304,20 +313,25 @@ export class Game {
         }
       }
 
-      // 6. Update Gems
+      // 6. Update Gems & Drop Items
       for (let i = 0; i < this.gems.length; i++) {
         this.gems[i].update(dt, this.player);
       }
+      for (let i = 0; i < this.items.length; i++) {
+        this.items[i].update(dt, this.player);
+      }
 
-      // 7. Combat System (Collisions, attacks, exp pickup)
+      // 7. Combat System (Collisions, attacks, exp pickup, item drops)
       this.combat.update(
         dt,
         this.player,
         this.enemies,
         this.projectiles,
         this.gems,
+        this.items,
         () => this.triggerLevelUp(),
-        () => this.triggerGameOver()
+        () => this.triggerGameOver(),
+        this
       );
 
       // 8. Update Particles & Floating Text
@@ -698,9 +712,12 @@ export class Game {
     // 1. Draw Infinite Tiled Floor Grid
     this.drawFloorGrid(ctx);
 
-    // 2. Draw Gems
+    // 2. Draw Gems & Drop Items
     for (let i = 0; i < this.gems.length; i++) {
       this.gems[i].draw(ctx);
+    }
+    for (let i = 0; i < this.items.length; i++) {
+      this.items[i].draw(ctx);
     }
 
     // 3. Draw Enemies
