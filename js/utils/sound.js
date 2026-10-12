@@ -292,6 +292,10 @@ class SoundSystem {
     if (!this.ctx) return;
 
     const t = this.ctx.currentTime;
+    if (this._lastBladeHitTime && t - this._lastBladeHitTime < 0.045) {
+      return; // Throttle to prevent audio thread overload
+    }
+    this._lastBladeHitTime = t;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 

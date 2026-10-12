@@ -66,8 +66,11 @@ export class MagicBolt {
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
 
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 10;
+    // Outer plasma glow halo
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, this.radius * 2.3, this.radius * 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
 
     // Outer plasma
     ctx.fillStyle = this.color;
@@ -125,8 +128,11 @@ export class OrbitingBlade {
     ctx.translate(this.x, this.y);
     ctx.rotate(angle + Math.PI / 2);
 
-    ctx.shadowColor = '#fbbf24';
-    ctx.shadowBlur = 12;
+    // Fast soft golden aura halo without shadowBlur
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.35)';
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius * 1.6, 0, Math.PI * 2);
+    ctx.fill();
 
     // Energy blade / orb
     ctx.fillStyle = '#f59e0b';

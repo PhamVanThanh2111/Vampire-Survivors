@@ -35,18 +35,16 @@ export class Particle {
 
   draw(ctx) {
     const alpha = Math.max(0, this.lifespan / this.maxLifespan);
-    ctx.save();
     ctx.globalAlpha = alpha;
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, Math.max(0.5, this.size), 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
   }
 }
 
 export class FloatingText {
-  constructor(x, y, text, color = '#facc15', isCrit = false, duration = 0.7) {
+  constructor(x, y, text, color = '#facc15', isCrit = false, duration = 0.65) {
     this.x = x + (Math.random() - 0.5) * 16;
     this.y = y - 10;
     this.text = text;
@@ -71,28 +69,19 @@ export class FloatingText {
   draw(ctx) {
     const progress = this.duration / this.maxDuration;
     const alpha = Math.min(1, progress * 1.5);
-    ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
 
-    const fontSize = this.isCrit ? 19 : 13;
+    const fontSize = this.isCrit ? 18 : 13;
     ctx.font = `bold ${fontSize}px "Segoe UI", Roboto, sans-serif`;
 
     const displayText = this.isCrit ? `💥 ${this.text}!` : this.text;
 
-    // Drop shadow / outline for crisp readability
+    // Fast high-contrast outline without expensive shadowBlur
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.fillText(displayText, this.x + 1.5, this.y + 1.5);
-
-    if (this.isCrit) {
-      ctx.shadowColor = '#f43f5e';
-      ctx.shadowBlur = 8;
-    }
+    ctx.fillText(displayText, this.x + 1.2, this.y + 1.2);
 
     ctx.fillStyle = this.color;
     ctx.fillText(displayText, this.x, this.y);
-    ctx.restore();
   }
 }
 
@@ -100,17 +89,23 @@ export class ParticleManager {
   constructor() {
     this.particles = [];
     this.floatingTexts = [];
+    this.maxParticles = 60; // Hard cap to prevent particle lag spikes
+    this.maxFloatingTexts = 30; // Hard cap on simultaneous damage text
   }
 
   /**
    * Spawns an explosion of particles at (x, y)
    */
   explode(x, y, color = '#e11d48', count = 8, minSpeed = 1, maxSpeed = 4) {
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + Vec2.randomRange(-0.3, 0.3);
+    const available = this.maxParticles - this.particles.length;
+    if (available <= 0) return;
+    const actualCount = Math.min(count, available);
+
+    for (let i = 0; i < actualCount; i++) {
+      const angle = (Math.PI * 2 * i) / actualCount + Vec2.randomRange(-0.3, 0.3);
       const speed = Vec2.randomRange(minSpeed, maxSpeed);
       const size = Vec2.randomRange(2, 4.5);
-      const lifespan = Vec2.randomRange(0.35, 0.65);
+      const lifespan = Vec2.randomRange(0.3, 0.55);
       this.particles.push(new Particle(x, y, color, size, speed, angle, lifespan));
     }
   }
@@ -118,12 +113,16 @@ export class ParticleManager {
   /**
    * Spawns hit spark particles
    */
-  spark(x, y, color = '#fef08a', count = 4) {
-    for (let i = 0; i < count; i++) {
+  spark(x, y, color = '#fef08a', count = 3) {
+    const available = this.maxParticles - this.particles.length;
+    if (available <= 0) return;
+    const actualCount = Math.min(count, available);
+
+    for (let i = 0; i < actualCount; i++) {
       const angle = Vec2.randomRange(0, Math.PI * 2);
       const speed = Vec2.randomRange(1.5, 3.5);
       const size = Vec2.randomRange(1.5, 3);
-      const lifespan = Vec2.randomRange(0.2, 0.35);
+      const lifespan = Vec2.randomRange(0.18, 0.3);
       this.particles.push(new Particle(x, y, color, size, speed, angle, lifespan));
     }
   }
@@ -132,6 +131,9 @@ export class ParticleManager {
    * Add a floating damage text
    */
   addFloatingText(x, y, text, color = '#facc15', isCrit = false) {
+    if (this.floatingTexts.length >= this.maxFloatingTexts) {
+      this.floatingTexts.shift(); // Evict oldest text when capped
+    }
     this.floatingTexts.push(new FloatingText(x, y, text, color, isCrit));
   }
 
@@ -156,12 +158,25 @@ export class ParticleManager {
   }
 
   draw(ctx) {
+    if (this.particles.length === 0 && this.floatingTexts.length === 0) return;
+
+    ctx.save();
+
+    // 1. Batch draw all particles
     for (let i = 0; i < this.particles.length; i++) {
       this.particles[i].draw(ctx);
     }
-    for (let i = 0; i < this.floatingTexts.length; i++) {
-      this.floatingTexts[i].draw(ctx);
+
+    // 2. Batch draw all floating damage texts
+    if (this.floatingTexts.length > 0) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < this.floatingTexts.length; i++) {
+        this.floatingTexts[i].draw(ctx);
+      }
     }
+
+    ctx.restore();
   }
 
   clear() {

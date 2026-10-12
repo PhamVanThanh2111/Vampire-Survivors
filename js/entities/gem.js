@@ -56,12 +56,15 @@ export class Gem {
     ctx.save();
     ctx.translate(this.x, drawY);
 
-    // Glowing aura
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur = 8;
-
-    // Draw diamond gem shape
+    // Fast soft aura without expensive shadowBlur
     ctx.fillStyle = this.color;
+    ctx.globalAlpha = 0.28;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius + 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 1.0;
+    // Draw diamond gem shape
     ctx.beginPath();
     ctx.moveTo(0, -this.radius);
     ctx.lineTo(this.radius, 0);

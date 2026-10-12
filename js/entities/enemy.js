@@ -91,7 +91,7 @@ export class Enemy {
     }
   }
 
-  update(dt, player, enemies) {
+  update(dt, player, spatialGridOrEnemies = null, bounds = null) {
     if (this.isDead) return;
 
     this.animTimer += dt * 8;
@@ -144,13 +144,17 @@ export class Enemy {
       }
 
       // Soft separation from other enemies to avoid stacking into a single point
-      if (enemies && enemies.length > 0) {
+      const candidates = spatialGrid && typeof spatialGrid.queryNearby === 'function'
+        ? spatialGrid.queryNearby(this.x, this.y)
+        : (enemies || null);
+
+      if (candidates && candidates.length > 0) {
         let sepX = 0;
         let sepY = 0;
         let count = 0;
 
-        for (let i = 0; i < enemies.length; i++) {
-          const other = enemies[i];
+        for (let i = 0; i < candidates.length; i++) {
+          const other = candidates[i];
           if (other === this || other.isDead) continue;
 
           const distSq = Vec2.distSq(this.x, this.y, other.x, other.y);
@@ -174,6 +178,12 @@ export class Enemy {
 
     this.x += vx * dt;
     this.y += vy * dt;
+
+    // Arena map boundary constraints
+    if (bounds) {
+      this.x = Math.max(this.radius, Math.min(bounds.width - this.radius, this.x));
+      this.y = Math.max(this.radius, Math.min(bounds.height - this.radius, this.y));
+    }
 
     // Manage white frost trail when slowed
     for (let i = this.frostTrail.length - 1; i >= 0; i--) {
@@ -205,19 +215,14 @@ export class Enemy {
   draw(ctx) {
     if (this.isDead) return;
 
-    // Draw glowing white frosty trail/ghost effect behind slowed enemy
+    // Fast frosty ghost trail rendering without expensive shadowBlur
     if (this.frostTrail && this.frostTrail.length > 0) {
       for (let i = 0; i < this.frostTrail.length; i++) {
         const pt = this.frostTrail[i];
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, pt.alpha);
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#e0f2fe';
-        ctx.shadowBlur = 10;
+        ctx.fillStyle = `rgba(224, 242, 254, ${Math.max(0, pt.alpha * 0.6)})`;
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, Math.max(1, pt.radius * 0.75), 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
       }
     }
 
@@ -339,12 +344,9 @@ export class Enemy {
         const sy = stunY + Math.sin(starAngle) * 3;
 
         ctx.fillStyle = '#facc15';
-        ctx.shadowColor = '#facc15';
-        ctx.shadowBlur = 4;
         ctx.beginPath();
         ctx.arc(sx, sy, 2.2, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0;
       }
     }
 

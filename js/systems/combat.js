@@ -18,10 +18,11 @@ export class CombatSystem {
   /**
    * Updates combat routines: auto-firing, projectile collisions, blade impacts, player damage, items
    */
-  update(dt, player, enemies, projectiles, gems, items, onLevelUp, onPlayerDied, gameInstance) {
+  update(dt, player, enemies, projectiles, gems, items, onLevelUp, onPlayerDied, gameInstance, spatialGrid = null) {
     // 1. Auto-Weapon 1: Magic Bolt auto-targeting
     if (player.canShootBolt()) {
-      const nearestEnemy = this.findNearestEnemy(player, enemies, this.targetRadius);
+      const candidates = spatialGrid ? spatialGrid.queryCircle(player.x, player.y, this.targetRadius) : enemies;
+      const nearestEnemy = this.findNearestEnemy(player, candidates, this.targetRadius);
       if (nearestEnemy) {
         const damage = Math.round(player.boltDamage * player.damageMultiplier);
         projectiles.push(new MagicBolt(player.x, player.y, nearestEnemy.x, nearestEnemy.y, damage));
@@ -30,13 +31,14 @@ export class CombatSystem {
       }
     }
 
-    // 2. Projectile collisions vs Enemies
+    // 2. Projectile collisions vs Enemies (O(1) local query via SpatialGrid)
     for (let pIdx = projectiles.length - 1; pIdx >= 0; pIdx--) {
       const proj = projectiles[pIdx];
       if (proj.isDead) continue;
 
-      for (let eIdx = 0; eIdx < enemies.length; eIdx++) {
-        const enemy = enemies[eIdx];
+      const candidates = spatialGrid ? spatialGrid.queryCircle(proj.x, proj.y, proj.radius + 20) : enemies;
+      for (let eIdx = 0; eIdx < candidates.length; eIdx++) {
+        const enemy = candidates[eIdx];
         if (enemy.isDead) continue;
 
         if (Vec2.circleIntersects(proj.x, proj.y, proj.radius, enemy.x, enemy.y, enemy.radius)) {
@@ -55,7 +57,7 @@ export class CombatSystem {
           this.applyPlayerLifesteal(player, damage);
 
           // Visuals
-          this.particles.spark(proj.x, proj.y, '#38bdf8', 5);
+          this.particles.spark(proj.x, proj.y, '#38bdf8', 4);
           this.particles.addFloatingText(enemy.x, enemy.y, `${damage}`, isCrit ? '#f43f5e' : '#facc15', isCrit);
 
           if (enemy.isDead) {
@@ -66,13 +68,14 @@ export class CombatSystem {
       }
     }
 
-    // 3. Orbiting Blades collisions vs Enemies
+    // 3. Orbiting Blades collisions vs Enemies (O(1) local query via SpatialGrid)
     const blades = player.orbitingBlades;
     for (let bIdx = 0; bIdx < blades.length; bIdx++) {
       const blade = blades[bIdx];
+      const candidates = spatialGrid ? spatialGrid.queryCircle(blade.x, blade.y, blade.radius + 20) : enemies;
 
-      for (let eIdx = 0; eIdx < enemies.length; eIdx++) {
-        const enemy = enemies[eIdx];
+      for (let eIdx = 0; eIdx < candidates.length; eIdx++) {
+        const enemy = candidates[eIdx];
         if (enemy.isDead) continue;
 
         if (blade.canHit(enemy) && Vec2.circleIntersects(blade.x, blade.y, blade.radius, enemy.x, enemy.y, enemy.radius)) {
@@ -90,7 +93,7 @@ export class CombatSystem {
           this.applyPlayerLifesteal(player, damage);
 
           soundManager.playBladeHit();
-          this.particles.spark(blade.x, blade.y, '#f59e0b', 4);
+          this.particles.spark(blade.x, blade.y, '#f59e0b', 3);
           this.particles.addFloatingText(enemy.x, enemy.y, `${damage}`, '#fbbf24', isCrit);
 
           if (enemy.isDead) {

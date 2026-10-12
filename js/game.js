@@ -10,6 +10,7 @@ import { Spawner } from './systems/spawner.js';
 import { CombatSystem } from './systems/combat.js';
 import { UpgradeSystem } from './systems/upgrade.js';
 import { soundManager } from './utils/sound.js?v=16';
+import { SpatialGrid } from './utils/spatial_grid.js';
 
 export const GAME_STATE = {
   PLAYING: 'PLAYING',
@@ -27,6 +28,13 @@ export class Game {
     this.virtualHeight = 720;
     this.canvas.width = this.virtualWidth;
     this.canvas.height = this.virtualHeight;
+
+    // Arena Boundaries (Finite Map)
+    this.mapWidth = 3200;
+    this.mapHeight = 2400;
+
+    // Spatial Hash Grid for high-performance O(N) queries
+    this.spatialGrid = new SpatialGrid(90);
 
     // State Machine
     this.state = GAME_STATE.PLAYING;
@@ -51,8 +59,8 @@ export class Game {
       right: false
     };
 
-    // Entities
-    this.player = new Player(0, 0);
+    // Entities (Spawn Player at Center of Arena)
+    this.player = new Player(this.mapWidth / 2, this.mapHeight / 2);
     this.enemies = [];
     this.projectiles = [];
     this.bombs = [];
@@ -100,12 +108,52 @@ export class Game {
     this.playerEffectsListEl = document.getElementById('player-effects-list');
     this.lastEffectsKey = '';
 
-    // Grid Floor Background Cache / Seed
+    // Grid Floor Background Cache & Screen Vignette Cache
     this.gridSize = 64;
+    this.floorPattern = null;
+    this.initFloorPattern();
+    this.vignetteGradient = null;
+    this.initVignette();
+    this._hudThrottle = 0;
+  }
+
+  initFloorPattern() {
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = 64;
+    pCanvas.height = 64;
+    const pCtx = pCanvas.getContext('2d');
+
+    pCtx.fillStyle = '#0f172a';
+    pCtx.fillRect(0, 0, 64, 64);
+
+    pCtx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
+    pCtx.lineWidth = 1;
+    pCtx.strokeRect(0.5, 0.5, 63, 63);
+
+    pCtx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+    pCtx.strokeRect(4.5, 4.5, 55, 55);
+
+    pCtx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+    pCtx.fillRect(30.5, 30.5, 3, 3);
+
+    this.floorPattern = this.ctx.createPattern(pCanvas, 'repeat');
+  }
+
+  initVignette() {
+    this.vignetteGradient = this.ctx.createRadialGradient(
+      this.virtualWidth / 2,
+      this.virtualHeight / 2,
+      this.virtualWidth * 0.35,
+      this.virtualWidth / 2,
+      this.virtualHeight / 2,
+      this.virtualWidth * 0.75
+    );
+    this.vignetteGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    this.vignetteGradient.addColorStop(1, 'rgba(3, 7, 18, 0.65)');
   }
 
   restart() {
-    this.player = new Player(0, 0);
+    this.player = new Player(this.mapWidth / 2, this.mapHeight / 2);
     this.enemies = [];
     this.projectiles = [];
     this.bombs = [];
@@ -275,20 +323,26 @@ export class Game {
     if (this.state === GAME_STATE.PLAYING) {
       this.survivalTimer += dt;
 
-      // 1. Update Player
+      // 1. Update Player & clamp within arena boundaries
       this.player.update(dt, this.input);
+      this.player.x = Math.max(this.player.radius, Math.min(this.mapWidth - this.player.radius, this.player.x));
+      this.player.y = Math.max(this.player.radius, Math.min(this.mapHeight - this.player.radius, this.player.y));
 
-      // 2. Camera follows player smoothly
-      this.camera.x = this.player.x - this.virtualWidth / 2;
-      this.camera.y = this.player.y - this.virtualHeight / 2;
+      // 2. Camera follows player, clamped to arena bounds so viewport stays within arena
+      this.camera.x = Math.max(0, Math.min(this.mapWidth - this.virtualWidth, this.player.x - this.virtualWidth / 2));
+      this.camera.y = Math.max(0, Math.min(this.mapHeight - this.virtualHeight, this.player.y - this.virtualHeight / 2));
 
-      // 3. Spawner update
-      this.spawner.update(dt, this.player, this.enemies);
+      // 3. Spawner update (passing arena bounds)
+      const bounds = { width: this.mapWidth, height: this.mapHeight };
+      this.spawner.update(dt, this.player, this.enemies, bounds);
 
-      // 4. Update Enemies
+      // 3.5 Build Spatial Hash Grid for all active enemies
+      this.spatialGrid.populate(this.enemies);
+
+      // 4. Update Enemies with Spatial Grid & Arena bounds
       for (let i = this.enemies.length - 1; i >= 0; i--) {
         const enemy = this.enemies[i];
-        enemy.update(dt, this.player, this.enemies);
+        enemy.update(dt, this.player, this.spatialGrid, bounds);
         if (enemy.isDead) {
           this.enemies.splice(i, 1);
           this.killCount++;
@@ -321,7 +375,7 @@ export class Game {
         this.items[i].update(dt, this.player);
       }
 
-      // 7. Combat System (Collisions, attacks, exp pickup, item drops)
+      // 7. Combat System (Collisions, attacks, exp pickup, item drops using SpatialGrid)
       this.combat.update(
         dt,
         this.player,
@@ -331,7 +385,8 @@ export class Game {
         this.items,
         () => this.triggerLevelUp(),
         () => this.triggerGameOver(),
-        this
+        this,
+        this.spatialGrid
       );
 
       // 8. Update Particles & Floating Text
@@ -343,32 +398,38 @@ export class Game {
   }
 
   updateHUD() {
+    // Keep HP bar and Exp bar animations fluid at 60 FPS
     if (this.hudHpBar) {
       const hpPct = Math.max(0, (this.player.hp / this.player.maxHp) * 100);
       this.hudHpBar.style.width = `${hpPct}%`;
-    }
-    if (this.hudHpText) {
-      this.hudHpText.textContent = `${Math.ceil(this.player.hp)} / ${this.player.maxHp}`;
     }
     if (this.hudExpBar) {
       const expPct = Math.min(100, (this.player.exp / this.player.expToNextLevel) * 100);
       this.hudExpBar.style.width = `${expPct}%`;
     }
-    if (this.hudLevelText) {
-      this.hudLevelText.textContent = `LV ${this.player.level}`;
-    }
-    if (this.hudTimerText) {
-      this.hudTimerText.textContent = this.formatTime(this.survivalTimer);
-    }
-    if (this.hudKillsText) {
-      this.hudKillsText.textContent = `💀 ${this.killCount}`;
-    }
 
-    // Update Bottom-Left Special Skills Tray
-    this.updateSpecialSkillsHUD();
+    // Throttle DOM text updates to ~15 FPS to eliminate Layout Thrashing
+    this._hudThrottle = (this._hudThrottle || 0) + 1;
+    if (this._hudThrottle % 4 === 0) {
+      if (this.hudHpText) {
+        this.hudHpText.textContent = `${Math.ceil(this.player.hp)} / ${this.player.maxHp}`;
+      }
+      if (this.hudLevelText) {
+        this.hudLevelText.textContent = `LV ${this.player.level}`;
+      }
+      if (this.hudTimerText) {
+        this.hudTimerText.textContent = this.formatTime(this.survivalTimer);
+      }
+      if (this.hudKillsText) {
+        this.hudKillsText.textContent = `💀 ${this.killCount}`;
+      }
 
-    // Update Right-Edge Vertical Player Stats & Effects Panel
-    this.updatePlayerStatsHUD();
+      // Update Bottom-Left Special Skills Tray
+      this.updateSpecialSkillsHUD();
+
+      // Update Right-Edge Vertical Player Stats & Effects Panel
+      this.updatePlayerStatsHUD();
+    }
   }
 
   renderPlayerStats(force = false) {
@@ -709,20 +770,36 @@ export class Game {
 
     ctx.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
 
-    // 1. Draw Infinite Tiled Floor Grid
+    // 1. Draw Bounded Arena Floor Grid & Boundary Walls
     this.drawFloorGrid(ctx);
 
-    // 2. Draw Gems & Drop Items
+    // Viewport Frustum Culling bounds (Camera viewport + small margin)
+    const cullPad = 65;
+    const viewMinX = this.camera.x - cullPad;
+    const viewMaxX = this.camera.x + this.virtualWidth + cullPad;
+    const viewMinY = this.camera.y - cullPad;
+    const viewMaxY = this.camera.y + this.virtualHeight + cullPad;
+
+    // 2. Draw Gems & Drop Items (Culled to camera viewport)
     for (let i = 0; i < this.gems.length; i++) {
-      this.gems[i].draw(ctx);
+      const g = this.gems[i];
+      if (g.x >= viewMinX && g.x <= viewMaxX && g.y >= viewMinY && g.y <= viewMaxY) {
+        g.draw(ctx);
+      }
     }
     for (let i = 0; i < this.items.length; i++) {
-      this.items[i].draw(ctx);
+      const it = this.items[i];
+      if (it.x >= viewMinX && it.x <= viewMaxX && it.y >= viewMinY && it.y <= viewMaxY) {
+        it.draw(ctx);
+      }
     }
 
-    // 3. Draw Enemies
+    // 3. Draw Enemies (Culled to camera viewport)
     for (let i = 0; i < this.enemies.length; i++) {
-      this.enemies[i].draw(ctx);
+      const e = this.enemies[i];
+      if (e.x >= viewMinX && e.x <= viewMaxX && e.y >= viewMinY && e.y <= viewMaxY) {
+        e.draw(ctx);
+      }
     }
 
     // 3.5 Draw Mega Bombs on ground
@@ -743,53 +820,177 @@ export class Game {
 
     ctx.restore();
 
-    // 7. Draw Vignette & Ambience in screen space
+    // 7. Draw Vignette in screen space (reusing cached gradient)
     this.drawScreenOverlay(ctx);
+
+    // 8. Draw Real-time Minimap in Bottom-Right Corner
+    this.drawMinimap(ctx);
   }
 
   drawFloorGrid(ctx) {
-    const startX = Math.floor(this.camera.x / this.gridSize) * this.gridSize;
-    const startY = Math.floor(this.camera.y / this.gridSize) * this.gridSize;
-    const endX = startX + this.virtualWidth + this.gridSize * 2;
-    const endY = startY + this.virtualHeight + this.gridSize * 2;
-
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(30, 41, 59, 0.45)';
-
-    ctx.beginPath();
-    for (let x = startX; x <= endX; x += this.gridSize) {
-      ctx.moveTo(x, startY);
-      ctx.lineTo(x, endY);
+    // 1. Draw finite arena floor with pre-cached pattern in 1 single call!
+    if (this.floorPattern) {
+      ctx.fillStyle = this.floorPattern;
+      ctx.fillRect(0, 0, this.mapWidth, this.mapHeight);
     }
-    for (let y = startY; y <= endY; y += this.gridSize) {
-      ctx.moveTo(startX, y);
-      ctx.lineTo(endX, y);
-    }
-    ctx.stroke();
 
-    // Subtle grid intersection dots
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
-    for (let x = startX; x <= endX; x += this.gridSize * 2) {
-      for (let y = startY; y <= endY; y += this.gridSize * 2) {
-        ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
-      }
+    // 2. Draw stylish glowing arena boundary barrier
+    ctx.save();
+    // Glowing red hazard boundary border
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
+    ctx.strokeRect(0, 0, this.mapWidth, this.mapHeight);
+
+    // Inner cyan laser line
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+    ctx.strokeRect(3, 3, this.mapWidth - 6, this.mapHeight - 6);
+
+    // Corner beacon pillars
+    const corners = [
+      [0, 0],
+      [this.mapWidth, 0],
+      [this.mapWidth, this.mapHeight],
+      [0, this.mapHeight]
+    ];
+    for (let i = 0; i < corners.length; i++) {
+      const [cx, cy] = corners[i];
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.restore();
   }
 
   drawScreenOverlay(ctx) {
-    // Subtle dark gothic vignette around edges
-    const grad = ctx.createRadialGradient(
-      this.virtualWidth / 2,
-      this.virtualHeight / 2,
-      this.virtualWidth * 0.35,
-      this.virtualWidth / 2,
-      this.virtualHeight / 2,
-      this.virtualWidth * 0.75
-    );
-    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    grad.addColorStop(1, 'rgba(3, 7, 18, 0.65)');
+    if (this.vignetteGradient) {
+      ctx.fillStyle = this.vignetteGradient;
+      ctx.fillRect(0, 0, this.virtualWidth, this.virtualHeight);
+    }
+  }
 
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, this.virtualWidth, this.virtualHeight);
+  /**
+   * Renders real-time Minimap in Bottom-Right Corner
+   */
+  drawMinimap(ctx) {
+    const mmW = 180;
+    const mmH = 135; // 4:3 matching 3200x2400
+    const mmX = this.virtualWidth - mmW - 18;
+    const mmY = this.virtualHeight - mmH - 18;
+
+    ctx.save();
+
+    // 1. Outer Container Frame (Glassmorphic dark slate panel)
+    ctx.fillStyle = 'rgba(11, 15, 25, 0.88)';
+    ctx.beginPath();
+    ctx.roundRect(mmX, mmY, mmW, mmH, 8);
+    ctx.fill();
+
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+    ctx.stroke();
+
+    // Inner clip so blips don't spill out
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(mmX + 1, mmY + 1, mmW - 2, mmH - 2, 7);
+    ctx.clip();
+
+    // Subtle coordinate grid crosshair
+    ctx.strokeStyle = 'rgba(30, 41, 59, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mmX + mmW / 2, mmY);
+    ctx.lineTo(mmX + mmW / 2, mmY + mmH);
+    ctx.moveTo(mmX, mmY + mmH / 2);
+    ctx.lineTo(mmX + mmW, mmY + mmH / 2);
+    ctx.stroke();
+
+    // Coordinate transformation scales
+    const scaleX = mmW / this.mapWidth;
+    const scaleY = mmH / this.mapHeight;
+
+    // 2. Camera Viewport Box on Minimap
+    const camMmX = mmX + this.camera.x * scaleX;
+    const camMmY = mmY + this.camera.y * scaleY;
+    const camMmW = this.virtualWidth * scaleX;
+    const camMmH = this.virtualHeight * scaleY;
+
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.fillRect(camMmX, camMmY, camMmW, camMmH);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(camMmX, camMmY, camMmW, camMmH);
+
+    // 3. Drop Items on Minimap (small emerald blips)
+    for (let i = 0; i < this.items.length; i++) {
+      const it = this.items[i];
+      if (it.isCollected) continue;
+      const ix = mmX + it.x * scaleX;
+      const iy = mmY + it.y * scaleY;
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(ix, iy, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. Enemies on Minimap (red dots, amber for brutes)
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (e.isDead) continue;
+      const ex = mmX + e.x * scaleX;
+      const ey = mmY + e.y * scaleY;
+
+      if (e.type === 'brute') {
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(ex, ey, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(ex - 1, ey - 1, 2, 2);
+      }
+    }
+
+    // 5. Player on Minimap (bright cyan blip with pulsing radar wave)
+    const px = mmX + this.player.x * scaleX;
+    const py = mmY + this.player.y * scaleY;
+
+    const radarPulse = 4 + Math.sin(this.survivalTimer * 5) * 2;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(px, py, radarPulse, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(px, py, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore(); // Undo inner clip
+
+    // 6. Header Badge with Real-time Monster Count
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(mmX + 6, mmY + 6, 88, 18, 4);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.font = 'bold 10px "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#fca5a5';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`👾 QUÁI: ${this.enemies.length}`, mmX + 11, mmY + 15);
+
+    ctx.restore();
   }
 }

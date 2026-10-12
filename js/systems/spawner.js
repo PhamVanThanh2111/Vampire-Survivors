@@ -36,7 +36,7 @@ export class Spawner {
     this.maxEnemies = 70;
   }
 
-  update(dt, player, enemies) {
+  update(dt, player, enemies, bounds = null) {
     this.timer += dt;
     this.spawnTimer += dt;
 
@@ -55,29 +55,30 @@ export class Spawner {
     // 4. Max Active Enemies Cap: starts at 70, scales gently up to 165 at 7m, capped at 180 max
     this.maxEnemies = Math.min(180, 70 + Math.floor(minutes * 15));
 
-    // 5. Cull distant enemies: remove enemies stranded far outside the viewport (> 1400px)
-    // Ensures enemy density remains focused on the player and prevents offscreen accumulation
-    const cullDistSq = 1400 * 1400;
-    for (let i = enemies.length - 1; i >= 0; i--) {
-      const e = enemies[i];
-      const dx = e.x - player.x;
-      const dy = e.y - player.y;
-      if (dx * dx + dy * dy > cullDistSq) {
-        enemies.splice(i, 1);
+    // 5. Cull distant enemies: Only when running on an unbounded infinite map
+    if (!bounds) {
+      const cullDistSq = 1500 * 1500;
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        const dx = e.x - player.x;
+        const dy = e.y - player.y;
+        if (dx * dx + dy * dy > cullDistSq) {
+          enemies.splice(i, 1);
+        }
       }
     }
 
     // 6. Spawn wave when timer expires
     if (this.spawnTimer >= this.spawnInterval) {
       this.spawnTimer = 0;
-      this.spawnWave(player, enemies);
+      this.spawnWave(player, enemies, bounds);
     }
   }
 
   /**
    * Spawns a wave of enemies outside the screen bounds, respecting maxEnemies cap
    */
-  spawnWave(player, enemies) {
+  spawnWave(player, enemies, bounds = null) {
     // If enemy count already reached max capacity, hold off spawning
     if (enemies.length >= this.maxEnemies) {
       return;
@@ -88,25 +89,52 @@ export class Spawner {
     const count = Math.min(this.batchSize, availableSlots);
 
     for (let i = 0; i < count; i++) {
-      const pos = this.getRandomSpawnPosition(player);
+      const pos = this.getRandomSpawnPosition(player, bounds);
       const enemy = this.createEnemyByTime(pos.x, pos.y);
       enemies.push(enemy);
     }
   }
 
   /**
-   * Calculates a spawn point just outside the viewport around the player or screen
+   * Spawns enemies directly along the 4 outer perimeter edges of the arena map
    */
-  getRandomSpawnPosition(player) {
-    const margin = 80;
-    // Choose which edge to spawn: 0: Top, 1: Right, 2: Bottom, 3: Left
+  getRandomSpawnPosition(player, bounds = null) {
+    // Choose which map edge to spawn from: 0: Top, 1: Right, 2: Bottom, 3: Left
     const edge = Math.floor(Math.random() * 4);
-    let x = 0;
-    let y = 0;
+    const borderInset = 22; // Spawn just inside the glowing barrier walls
 
-    // Relative to player coordinate center
+    if (bounds) {
+      let x = 0;
+      let y = 0;
+
+      switch (edge) {
+        case 0: // Top edge of the arena map
+          x = Vec2.randomRange(borderInset, bounds.width - borderInset);
+          y = borderInset;
+          break;
+        case 1: // Right edge of the arena map
+          x = bounds.width - borderInset;
+          y = Vec2.randomRange(borderInset, bounds.height - borderInset);
+          break;
+        case 2: // Bottom edge of the arena map
+          x = Vec2.randomRange(borderInset, bounds.width - borderInset);
+          y = bounds.height - borderInset;
+          break;
+        case 3: // Left edge of the arena map
+          x = borderInset;
+          y = Vec2.randomRange(borderInset, bounds.height - borderInset);
+          break;
+      }
+
+      return { x, y };
+    }
+
+    // Fallback: spawn relative to player viewport if bounds not provided
+    const margin = 80;
     const halfW = this.canvasWidth / 2;
     const halfH = this.canvasHeight / 2;
+    let x = 0;
+    let y = 0;
 
     switch (edge) {
       case 0: // Top
