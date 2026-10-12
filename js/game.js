@@ -231,6 +231,10 @@ export class Game {
 
   triggerLevelUp() {
     this.state = GAME_STATE.PAUSED;
+    this.input.up = false;
+    this.input.down = false;
+    this.input.left = false;
+    this.input.right = false;
     this.upgradeSystem.show(this.player, (chosenCard) => {
       this.recordAcquiredUpgrade(chosenCard);
       this.updatePlayerStatsHUD(true);

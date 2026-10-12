@@ -272,6 +272,22 @@ export class UpgradeSystem {
     this.lastMouseX = -1;
     this.lastMouseY = -1;
 
+    // Track active keys to completely disable key-holding repeat and neutralize walking keys
+    this.currentlyHeldKeys = new Set();
+    this.ignoredUntilKeyUp = new Set();
+
+    window.addEventListener('keydown', (e) => {
+      this.currentlyHeldKeys.add(e.code);
+      if (e.key) this.currentlyHeldKeys.add(e.key.toLowerCase());
+    }, true);
+
+    window.addEventListener('keyup', (e) => {
+      this.currentlyHeldKeys.delete(e.code);
+      if (e.key) this.currentlyHeldKeys.delete(e.key.toLowerCase());
+      this.ignoredUntilKeyUp.delete(e.code);
+      if (e.key) this.ignoredUntilKeyUp.delete(e.key.toLowerCase());
+    }, true);
+
     // Direct capture-phase keydown listener on window to guarantee 100% responsiveness
     this.boundKeyHandler = (e) => {
       if (this.isSelecting) {
@@ -358,6 +374,9 @@ export class UpgradeSystem {
     this.onSelectCallback = onSelect;
     const isMilestone = player.level % 5 === 0;
     const targetCards = this.getRandomUpgrades(player, 3);
+
+    // Neutralize any keys being held down at the moment modal opens (e.g. holding ArrowRight while walking)
+    this.ignoredUntilKeyUp = new Set(this.currentlyHeldKeys);
 
     this.modalEl.classList.remove('hidden');
     this.modalEl.classList.add('visible');
@@ -910,8 +929,19 @@ export class UpgradeSystem {
   handleKeyDown(e) {
     if (!this.isSelecting || this.currentCards.length === 0) return false;
 
+    // 1. CHẶN HOÀN TOÀN GIỮ PHÍM (e.repeat): Chỉ cho phép nhấn từng phím đơn rẽ (discrete taps)!
+    // Ngăn chặn tuyệt đối việc giữ phím khiến con trỏ liên tục chạy tự động sang phải/trái.
+    if (e.repeat) {
+      return true; // Consume repeat event without doing any action
+    }
+
     const key = e.key ? e.key.toLowerCase() : '';
     const code = e.code || '';
+
+    // 2. Chặn các phím đã được nhấn giữ TRƯỚC KHI mở modal (bắt buộc phải nhả phím ra bấm lại mới nhận)
+    if (this.ignoredUntilKeyUp && (this.ignoredUntilKeyUp.has(code) || this.ignoredUntilKeyUp.has(key))) {
+      return true;
+    }
 
     // Phím 1: Chỉ nhảy sang thẻ 1 (chưa chọn)
     if (key === '1' || code === 'Digit1' || code === 'Numpad1') {
@@ -975,6 +1005,9 @@ export class UpgradeSystem {
     }
     this.isSelecting = false;
     this.currentCards = [];
+    if (this.ignoredUntilKeyUp) {
+      this.ignoredUntilKeyUp.clear();
+    }
     this.modalEl.classList.remove('visible');
     this.modalEl.classList.add('hidden');
   }
