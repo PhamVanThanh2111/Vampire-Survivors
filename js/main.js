@@ -106,6 +106,11 @@ window.addEventListener('DOMContentLoaded', () => {
         game.particles.spark(game.player.x + 40, game.player.y + 15, '#facc15', 6);
       }
     }
+
+    // Summon Boss "Hoả diệm vương" shortcut for testing (Phím B)
+    if (key === 'b') {
+      game.spawnBoss('fire_lord');
+    }
   });
 
   window.addEventListener('keyup', (e) => {

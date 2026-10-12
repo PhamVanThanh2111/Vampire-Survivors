@@ -174,15 +174,24 @@ export class CombatSystem {
 
   handleEnemyDeath(enemy, gems, items) {
     soundManager.playEnemyDeath();
-    this.particles.explode(enemy.x, enemy.y, enemy.color, 9, 2, 4.5);
+    const particleCount = enemy.isBoss ? 28 : 9;
+    const particleSpeed = enemy.isBoss ? 7 : 4.5;
+    this.particles.explode(enemy.x, enemy.y, enemy.color, particleCount, 2, particleSpeed);
+    
     // Drop EXP Gem at enemy position
-    gems.push(new Gem(enemy.x, enemy.y, enemy.expValue, enemy.color === '#ef4444' ? '#f43f5e' : '#38bdf8'));
+    gems.push(new Gem(enemy.x, enemy.y, enemy.expValue, (enemy.color === '#ef4444' || enemy.isBoss) ? '#f43f5e' : '#38bdf8'));
 
-    // Chance to drop a helpful item: ~5.5% for regular enemies, ~15% for Brutes
+    // Chance to drop a helpful item: 100% for Boss (drops multiple rewards!), ~15% for Brutes, ~5.5% for regular enemies
     if (items) {
-      const dropChance = enemy.type === 'brute' ? 0.15 : 0.055;
-      if (Math.random() < dropChance) {
+      if (enemy.isBoss) {
         items.push(DropItem.createRandom(enemy.x, enemy.y));
+        items.push(DropItem.createRandom(enemy.x + 25, enemy.y + 12));
+        items.push(DropItem.createRandom(enemy.x - 25, enemy.y - 12));
+      } else {
+        const dropChance = enemy.type === 'brute' ? 0.15 : 0.055;
+        if (Math.random() < dropChance) {
+          items.push(DropItem.createRandom(enemy.x, enemy.y));
+        }
       }
     }
   }
@@ -261,18 +270,25 @@ export class CombatSystem {
   findNearestEnemy(player, enemies, maxRadius) {
     let nearest = null;
     let minDistSq = maxRadius * maxRadius;
+    let foundBoss = null;
+    let bossDistSq = (maxRadius * 1.35) * (maxRadius * 1.35);
 
     for (let i = 0; i < enemies.length; i++) {
       const enemy = enemies[i];
       if (enemy.isDead) continue;
 
       const dSq = Vec2.distSq(player.x, player.y, enemy.x, enemy.y);
+      if (enemy.isBoss && dSq <= bossDistSq) {
+        foundBoss = enemy;
+      }
       if (dSq <= minDistSq) {
         minDistSq = dSq;
         nearest = enemy;
       }
     }
 
+    // Prioritize Boss so player focus fires on the Boss rather than stray mobs
+    if (foundBoss) return foundBoss;
     return nearest;
   }
 

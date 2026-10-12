@@ -11,6 +11,7 @@ import { CombatSystem } from './systems/combat.js';
 import { UpgradeSystem } from './systems/upgrade.js';
 import { soundManager } from './utils/sound.js?v=16';
 import { SpatialGrid } from './utils/spatial_grid.js';
+import { FireLordBoss } from './entities/boss/index.js';
 
 export const GAME_STATE = {
   PLAYING: 'PLAYING',
@@ -66,6 +67,19 @@ export class Game {
     this.bombs = [];
     this.gems = [];
     this.items = [];
+
+    // Boss System
+    this.activeBoss = null;
+    this.bossAttacks = [];
+    this.hasSpawnedLevel5Boss = false;
+
+    // Boss HUD Elements Cache
+    this.bossHudEl = document.getElementById('boss-hud');
+    this.bossNameEl = document.getElementById('boss-name');
+    this.bossSubtitleEl = document.getElementById('boss-subtitle');
+    this.bossHpFillEl = document.getElementById('boss-hp-fill');
+    this.bossMultiplierBadgeEl = document.getElementById('boss-multiplier-badge');
+    this.bossHpTextEl = document.getElementById('boss-hp-text');
 
     // HUD Elements Cache
     this.hudHpBar = document.getElementById('hp-bar-fill');
@@ -164,6 +178,12 @@ export class Game {
     this.acquiredUpgrades = [];
     this.lastEffectsKey = '';
 
+    // Reset Boss System
+    this.activeBoss = null;
+    this.bossAttacks = [];
+    this.hasSpawnedLevel5Boss = false;
+    this.hideBossHUD();
+
     this.survivalTimer = 0;
     this.killCount = 0;
     this.lastTime = performance.now();
@@ -174,6 +194,83 @@ export class Game {
     }
 
     this.state = GAME_STATE.PLAYING;
+  }
+
+  /**
+   * Spawns a Boss into the game arena
+   * @param {string} type - 'fire_lord' or extensible future boss ids
+   */
+  spawnBoss(type = 'fire_lord') {
+    // If a boss is already active, don't spawn duplicate boss to avoid chaos
+    if (this.activeBoss && !this.activeBoss.isDead) {
+      if (this.particles && typeof this.particles.addFloatingText === 'function') {
+        this.particles.addFloatingText(this.player.x, this.player.y - 40, '⚠️ TRÙM ĐANG HIỆN DIỆN!', '#f97316', true);
+      }
+      return this.activeBoss;
+    }
+
+    // Determine spawn position near player but dramatic distance (approx 420px away)
+    let sx = this.player.x + (Math.random() > 0.5 ? 420 : -420);
+    let sy = this.player.y + (Math.random() > 0.5 ? 320 : -320);
+
+    // Keep clamped inside arena boundaries
+    sx = Math.max(100, Math.min(this.mapWidth - 100, sx));
+    sy = Math.max(100, Math.min(this.mapHeight - 100, sy));
+
+    let boss = null;
+    if (type === 'fire_lord') {
+      boss = new FireLordBoss(sx, sy);
+    }
+
+    if (boss) {
+      this.enemies.push(boss);
+      this.activeBoss = boss;
+      this.showBossHUD(boss);
+
+      // Boss entry fanfare
+      if (this.combat) {
+        this.combat.screenShake = 18;
+      }
+      soundManager.playLevelUp();
+      if (this.particles && typeof this.particles.addFloatingText === 'function') {
+        this.particles.addFloatingText(this.player.x, this.player.y - 80, '⚠️ TRÙM HOẢ DIỆM VƯƠNG XUẤT HIỆN!', '#ef4444', true);
+      }
+    }
+    return boss;
+  }
+
+  showBossHUD(boss) {
+    if (!this.bossHudEl) return;
+    this.bossHudEl.classList.remove('hidden');
+    this.bossHudEl.classList.add('visible');
+    if (this.bossNameEl) this.bossNameEl.textContent = boss.name;
+    if (this.bossSubtitleEl) this.bossSubtitleEl.textContent = boss.title || 'CHÚA TỂ LỬA';
+    this.updateBossHUD(boss);
+  }
+
+  updateBossHUD(boss) {
+    if (!boss || !this.bossHudEl) return;
+    const hpPct = boss.getHpPercent();
+    if (this.bossHpFillEl) {
+      this.bossHpFillEl.style.width = `${hpPct}%`;
+    }
+    if (this.bossMultiplierBadgeEl) {
+      if (boss.currentBar > 1) {
+        this.bossMultiplierBadgeEl.style.display = 'inline-block';
+        this.bossMultiplierBadgeEl.textContent = `x${boss.currentBar}`;
+      } else {
+        this.bossMultiplierBadgeEl.style.display = 'none';
+      }
+    }
+    if (this.bossHpTextEl) {
+      this.bossHpTextEl.textContent = `${Math.ceil(boss.hp)} / ${boss.barMaxHp}`;
+    }
+  }
+
+  hideBossHUD() {
+    if (!this.bossHudEl) return;
+    this.bossHudEl.classList.remove('visible');
+    this.bossHudEl.classList.add('hidden');
   }
 
   spawnBomb(x, y) {
@@ -336,20 +433,45 @@ export class Game {
       this.camera.x = Math.max(0, Math.min(this.mapWidth - this.virtualWidth, this.player.x - this.virtualWidth / 2));
       this.camera.y = Math.max(0, Math.min(this.mapHeight - this.virtualHeight, this.player.y - this.virtualHeight / 2));
 
-      // 3. Spawner update (passing arena bounds)
+      // 2.5 Check Level 5 Milestone Boss Spawn Trigger
+      if (this.player.level >= 5 && !this.hasSpawnedLevel5Boss) {
+        this.hasSpawnedLevel5Boss = true;
+        this.spawnBoss('fire_lord');
+      }
+
+      // 3. Spawner update (passing arena bounds & active boss status)
       const bounds = { width: this.mapWidth, height: this.mapHeight };
-      this.spawner.update(dt, this.player, this.enemies, bounds);
+      const hasActiveBoss = !!(this.activeBoss && !this.activeBoss.isDead);
+      this.spawner.update(dt, this.player, this.enemies, bounds, hasActiveBoss);
 
       // 3.5 Build Spatial Hash Grid for all active enemies
       this.spatialGrid.populate(this.enemies);
 
-      // 4. Update Enemies with Spatial Grid & Arena bounds
+      // 4. Update Enemies with Spatial Grid & Arena bounds (pass game instance for boss skills)
       for (let i = this.enemies.length - 1; i >= 0; i--) {
         const enemy = this.enemies[i];
-        enemy.update(dt, this.player, this.spatialGrid, bounds);
+        enemy.update(dt, this.player, this.spatialGrid, bounds, this);
         if (enemy.isDead) {
+          if (enemy.isBoss) {
+            this.activeBoss = null;
+            this.hideBossHUD();
+            if (this.combat) this.combat.screenShake = 22;
+            if (this.particles && typeof this.particles.addFloatingText === 'function') {
+              this.particles.addFloatingText(enemy.x, enemy.y, '🏆 TIÊU DIỆT HOẢ DIỆM VƯƠNG!', '#eab308', true);
+            }
+          }
           this.enemies.splice(i, 1);
           this.killCount++;
+        }
+      }
+
+      // Sync Boss HUD
+      if (this.activeBoss) {
+        if (this.activeBoss.isDead) {
+          this.activeBoss = null;
+          this.hideBossHUD();
+        } else {
+          this.updateBossHUD(this.activeBoss);
         }
       }
 
@@ -368,6 +490,15 @@ export class Game {
         bomb.update(dt, this);
         if (bomb.isDead) {
           this.bombs.splice(i, 1);
+        }
+      }
+
+      // 5.6 Update Boss Attacks (Ground Telegraphs & Falling Fireballs)
+      for (let i = this.bossAttacks.length - 1; i >= 0; i--) {
+        const atk = this.bossAttacks[i];
+        atk.update(dt, this.player, this.particles, this);
+        if (atk.isDead) {
+          this.bossAttacks.splice(i, 1);
         }
       }
 
@@ -811,6 +942,11 @@ export class Game {
       this.bombs[i].draw(ctx);
     }
 
+    // 3.6 Draw Boss Attacks (Ground Telegraphs & Falling Fireballs)
+    for (let i = 0; i < this.bossAttacks.length; i++) {
+      this.bossAttacks[i].draw(ctx);
+    }
+
     // 4. Draw Projectiles
     for (let i = 0; i < this.projectiles.length; i++) {
       this.projectiles[i].draw(ctx);
@@ -951,7 +1087,17 @@ export class Game {
       const ex = mmX + e.x * scaleX;
       const ey = mmY + e.y * scaleY;
 
-      if (e.type === 'brute') {
+      if (e.isBoss) {
+        // Glowing Boss icon with golden rim on minimap
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.arc(ex, ey, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else if (e.type === 'brute') {
         ctx.fillStyle = '#f59e0b';
         ctx.beginPath();
         ctx.arc(ex, ey, 2.2, 0, Math.PI * 2);

@@ -1457,3 +1457,130 @@ body {
   }
 }
 
+/* ==========================================================================
+   Epic Boss Health Bar (Top-Center HUD)
+   ========================================================================== */
+.boss-hud-container {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 86%);
+  background: rgba(15, 23, 42, 0.88);
+  border: 1.5px solid rgba(239, 68, 68, 0.65);
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.35), inset 0 0 15px rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+  padding: 8px 16px 10px 16px;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.boss-hud-container.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+  pointer-events: none;
+}
+
+.boss-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.boss-hud-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boss-hud-skull {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulseSkull 1.4s infinite ease-in-out;
+}
+
+.boss-horns-icon {
+  display: block;
+  filter: drop-shadow(0 0 6px #ef4444);
+}
+
+@keyframes pulseSkull {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); filter: drop-shadow(0 0 6px #ef4444); }
+}
+
+.boss-hud-name {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fef08a;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+.boss-hud-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f97316;
+  letter-spacing: 0.5px;
+}
+
+.boss-multiplier-badge {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid #fca5a5;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+  letter-spacing: 0.5px;
+  animation: badgeGlow 1.8s infinite ease-in-out;
+}
+
+@keyframes badgeGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+  50% { box-shadow: 0 0 16px rgba(249, 115, 22, 0.9); }
+}
+
+.boss-hp-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  background: rgba(30, 41, 59, 0.9);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.boss-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #dc2626, #f97316, #fef08a);
+  border-radius: 5px;
+  box-shadow: 0 0 12px #f97316;
+  transition: width 0.15s ease-out;
+}
+
+.boss-hp-sheen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent);
+}
+
+.boss-hp-info {
+  margin-top: 4px;
+  text-align: right;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #cbd5e1;
+  letter-spacing: 0.5px;
+}
+
+

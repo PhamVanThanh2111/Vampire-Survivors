@@ -2,7 +2,7 @@
  * Spawner System: Manages wave progression and enemy generation outside viewport
  */
 
-import { ZombieEnemy, BatEnemy, BruteEnemy } from '../entities/enemy.js';
+import { ZombieEnemy, BatEnemy, BruteEnemy } from '../entities/regular_enemies.js';
 import { Vec2 } from '../utils/math.js';
 
 export class Spawner {
@@ -36,7 +36,7 @@ export class Spawner {
     this.maxEnemies = 70;
   }
 
-  update(dt, player, enemies, bounds = null) {
+  update(dt, player, enemies, bounds = null, hasActiveBoss = false) {
     this.timer += dt;
     this.spawnTimer += dt;
 
@@ -54,6 +54,13 @@ export class Spawner {
 
     // 4. Max Active Enemies Cap: starts at 70, scales gently up to 165 at 7m, capped at 180 max
     this.maxEnemies = Math.min(180, 70 + Math.floor(minutes * 15));
+
+    // When Boss is active: drastically reduce regular mob spawns so player can focus on Boss!
+    if (hasActiveBoss) {
+      this.spawnInterval = 4.2; // 4.2s between spawns (much slower)
+      this.batchSize = 1;       // Only 1 mob spawned per batch
+      this.maxEnemies = 12;     // Cap mobs to at most 12
+    }
 
     // 5. Cull distant enemies: Only when running on an unbounded infinite map
     if (!bounds) {

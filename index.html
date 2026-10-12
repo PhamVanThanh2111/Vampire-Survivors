@@ -10,7 +10,7 @@
   <meta http-equiv="Expires" content="0">
   <link rel="icon" type="image/png" href="./favicon.png?v=3">
   <link rel="shortcut icon" type="image/png" href="./favicon.png?v=3">
-  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body>
   <div id="game-container">
@@ -50,9 +50,37 @@
         </div>
       </div>
 
+      <!-- Epic Boss Health Bar (Top-Center HUD) -->
+      <div id="boss-hud" class="boss-hud-container hidden">
+        <div class="boss-hud-header">
+          <div class="boss-hud-title-group">
+            <span class="boss-hud-skull" title="Sừng trâu">
+              <svg class="boss-horns-icon" viewBox="0 0 32 32" width="24" height="24">
+                <!-- Left Buffalo Horn -->
+                <path d="M14 20 C10 17 4 12 3 5 C 8 8 13 14 14 16 Z" fill="#f97316" stroke="#fef08a" stroke-width="1.2"/>
+                <!-- Right Buffalo Horn -->
+                <path d="M18 20 C22 17 28 12 29 5 C 24 8 19 14 18 16 Z" fill="#f97316" stroke="#fef08a" stroke-width="1.2"/>
+                <!-- Demon Horn Center Head Base -->
+                <path d="M13 16 Q16 14 19 16 L18 22 Q16 25 14 22 Z" fill="#dc2626" stroke="#fef08a" stroke-width="1"/>
+              </svg>
+            </span>
+            <span id="boss-name" class="boss-hud-name">Hoả diệm vương</span>
+            <span class="boss-hud-subtitle" id="boss-subtitle">CHÚA TỂ LỬA</span>
+          </div>
+          <div id="boss-multiplier-badge" class="boss-multiplier-badge">x2</div>
+        </div>
+        <div class="boss-hp-track">
+          <div id="boss-hp-fill" class="boss-hp-fill" style="width: 100%;"></div>
+          <div class="boss-hp-sheen"></div>
+        </div>
+        <div class="boss-hp-info">
+          <span id="boss-hp-text">500 / 500</span>
+        </div>
+      </div>
+
       <!-- Bottom Hint -->
       <div class="hud-bottom-bar">
-        <span class="controls-hint">Di chuyển: W, A, S, D | Phím I: Thử rơi vật phẩm | Phím 6/U: Thăng cấp thử | Phím H: +40 Max HP</span>
+        <span class="controls-hint">Di chuyển: W, A, S, D | Phím B: Triệu hồi Hoả Diệm Vương | Phím I: Vật phẩm rơi | Phím U: Thăng cấp thử</span>
       </div>
 
       <!-- Bottom-Left Special Skills Tray (Active skills 1, 2, 3...) -->
@@ -204,6 +232,6 @@
   </div>
 
   <!-- Main ES Module Script -->
-  <script type="module" src="js/main.js?v=20"></script>
+  <script type="module" src="js/main.js?v=27"></script>
 </body>
 </html>
