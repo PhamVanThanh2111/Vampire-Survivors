@@ -225,7 +225,7 @@ export const UPGRADE_POOL = [
     icon: '💣',
     type: 'SPECIAL',
     isSpecial: true,
-    description: 'Thẻ Đặc Biệt: Đặt 1 quả bom tại vị trí đang đứng, nổ sau 1 giây gây sát thương cực mạnh xung quanh (có thể gây sát thương lên chính nhân vật!). Hồi chiêu 35s (Bấm phím số để kích hoạt).',
+    description: 'Thẻ Đặc Biệt: Đặt 1 quả bom tại vị trí đang đứng, nổ sau 1.1 giây gây sát thương cực mạnh trong bán kính 135px (có thể gây sát thương lên nhân vật nếu không kịp chạy ra ngoài!). Hồi chiêu 35s (Bấm phím số để kích hoạt).',
     isAvailable(player) {
       return player.level % 5 === 0 && !player.hasSpecialSkill('special_bomb');
     },

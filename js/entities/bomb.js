@@ -8,14 +8,14 @@ import { Vec2 } from '../utils/math.js';
 import { soundManager } from '../utils/sound.js';
 
 export class Bomb {
-  constructor(x, y, damage = 350, blastRadius = 210, owner = null) {
+  constructor(x, y, damage = 350, blastRadius = 135, owner = null) {
     this.x = x;
     this.y = y;
     this.damage = damage;
-    this.blastRadius = blastRadius;
+    this.blastRadius = blastRadius; // 135px radius (diameter 270px) gives ~1.1s escape window for player
     this.owner = owner;
 
-    this.fuseTime = 1.0; // Detonates in 1.0s after planting as requested
+    this.fuseTime = 1.1; // Detonates in 1.1s after planting, allowing player running at 200px/s (covers 220px) to escape 151px danger zone
     this.fuseTimer = this.fuseTime;
     this.isDead = false;
 

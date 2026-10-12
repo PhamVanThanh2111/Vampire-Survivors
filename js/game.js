@@ -129,7 +129,7 @@ export class Game {
   }
 
   spawnBomb(x, y) {
-    const bomb = new Bomb(x, y, 350, 240, this.player);
+    const bomb = new Bomb(x, y, 350, 135, this.player);
     this.bombs.push(bomb);
   }
 
