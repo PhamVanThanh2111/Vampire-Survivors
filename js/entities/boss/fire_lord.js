@@ -24,22 +24,22 @@ import { soundManager } from '../../utils/sound.js?v=16';
 
 // Preload 4-frame walk cycle + 2-frame skill cast sprites
 const spriteWalk1 = new Image();
-spriteWalk1.src = 'assets/boss/fire_lord/walk_1.png';
+spriteWalk1.src = 'assets/boss/fire_lord/walk_1.png?v=35';
 
 const spriteWalk2 = new Image();
-spriteWalk2.src = 'assets/boss/fire_lord/walk_2.png';
+spriteWalk2.src = 'assets/boss/fire_lord/walk_2.png?v=35';
 
 const spriteWalk3 = new Image();
-spriteWalk3.src = 'assets/boss/fire_lord/walk_3.png';
+spriteWalk3.src = 'assets/boss/fire_lord/walk_3.png?v=35';
 
 const spriteWalk4 = new Image();
-spriteWalk4.src = 'assets/boss/fire_lord/walk_4.png';
+spriteWalk4.src = 'assets/boss/fire_lord/walk_4.png?v=35';
 
 const spriteCastCharge = new Image();
-spriteCastCharge.src = 'assets/boss/fire_lord/cast_charge.png';
+spriteCastCharge.src = 'assets/boss/fire_lord/cast_charge.png?v=35';
 
 const spriteCastSlam = new Image();
-spriteCastSlam.src = 'assets/boss/fire_lord/cast_slam.png';
+spriteCastSlam.src = 'assets/boss/fire_lord/cast_slam.png?v=35';
 
 export class FireLordBoss extends Boss {
   constructor(x, y) {
