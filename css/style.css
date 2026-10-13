@@ -13,7 +13,8 @@
   --accent-crimson: #ef4444;
   --accent-green: #22c55e;
   --accent-purple: #a855f7;
-  --font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --font-heading: 'Outfit', 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
 }
 
 * {
@@ -22,6 +23,10 @@
   padding: 0;
   user-select: none;
   -webkit-user-select: none;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 body {
@@ -709,7 +714,9 @@ body {
 }
 
 .game-over-title {
+  font-family: var(--font-heading);
   font-size: 36px;
+  font-weight: 900;
   color: #ef4444;
   background: linear-gradient(135deg, #f87171, #dc2626);
   -webkit-background-clip: text;
@@ -744,6 +751,7 @@ body {
 }
 
 .primary-btn {
+  font-family: var(--font-family);
   background: linear-gradient(135deg, #dc2626, #ef4444);
   color: #fff;
   border: none;
@@ -752,7 +760,7 @@ body {
   font-weight: 800;
   border-radius: 8px;
   cursor: pointer;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
   transition: all 0.2s;
 }
