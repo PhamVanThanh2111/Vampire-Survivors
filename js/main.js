@@ -96,14 +96,17 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Spawn Drop Item shortcut for testing (Phím I)
+    // Spawn Drop Item showcase shortcut for testing (Phím I)
     if (key === 'i') {
-      const types = ['health', 'damage', 'max_hp', 'speed', 'vacuum', 'freeze'];
-      const randomType = types[Math.floor(Math.random() * types.length)];
-      game.spawnDropItem(game.player.x + 40, game.player.y + 15, randomType);
+      const types = ['health', 'max_hp', 'damage', 'speed', 'vacuum', 'freeze'];
+      types.forEach((type, idx) => {
+        const offsetX = (idx - 2.5) * 48;
+        const offsetY = -140; // Ngoài tầm hút 100px để người chơi quan sát rõ ràng
+        game.spawnDropItem(game.player.x + offsetX, game.player.y + offsetY, type);
+      });
       soundManager.playShoot();
       if (game.particles) {
-        game.particles.spark(game.player.x + 40, game.player.y + 15, '#facc15', 6);
+        game.particles.addFloatingText(game.player.x, game.player.y - 40, '✨ Đã rơi 6 loại vật phẩm!', '#facc15', true);
       }
     }
 

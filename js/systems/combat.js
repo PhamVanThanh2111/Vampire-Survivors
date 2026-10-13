@@ -181,14 +181,17 @@ export class CombatSystem {
     // Drop EXP Gem at enemy position
     gems.push(new Gem(enemy.x, enemy.y, enemy.expValue, (enemy.color === '#ef4444' || enemy.isBoss) ? '#f43f5e' : '#38bdf8'));
 
-    // Chance to drop a helpful item: 100% for Boss (drops multiple rewards!), ~15% for Brutes, ~5.5% for regular enemies
+    // Chance to drop a helpful item: Giảm 30% tỉ lệ rơi (Boss: 2-3 phần thưởng, Brute: 10.5%, Quái thường: ~3.8%)
     if (items) {
       if (enemy.isBoss) {
         items.push(DropItem.createRandom(enemy.x, enemy.y));
         items.push(DropItem.createRandom(enemy.x + 25, enemy.y + 12));
-        items.push(DropItem.createRandom(enemy.x - 25, enemy.y - 12));
+        if (Math.random() < 0.7) {
+          items.push(DropItem.createRandom(enemy.x - 25, enemy.y - 12));
+        }
       } else {
-        const dropChance = enemy.type === 'brute' ? 0.15 : 0.055;
+        // Giảm 30% so với trước (trước: brute 0.15, quái thường 0.055)
+        const dropChance = enemy.type === 'brute' ? 0.105 : 0.038;
         if (Math.random() < dropChance) {
           items.push(DropItem.createRandom(enemy.x, enemy.y));
         }
@@ -214,27 +217,27 @@ export class CombatSystem {
       case 'health': {
         const healAmt = 25;
         player.heal(healAmt);
-        this.particles.spark(item.x, item.y, '#ef4444', 6);
+        this.particles.spark(item.x, item.y, '#22c55e', 8);
         this.particles.addFloatingText(player.x, player.y - 20, `+${healAmt} HP`, '#22c55e', true);
         break;
       }
       case 'damage': {
         player.damageMultiplier = parseFloat((player.damageMultiplier + 0.03).toFixed(3));
         player.updateBlades();
-        this.particles.spark(item.x, item.y, '#f97316', 7);
+        this.particles.spark(item.x, item.y, '#f97316', 8);
         this.particles.addFloatingText(player.x, player.y - 20, '+3% Sát Thương!', '#f97316', true);
         break;
       }
       case 'max_hp': {
         player.increaseMaxHp(5);
-        this.particles.spark(item.x, item.y, '#ec4899', 7);
-        this.particles.addFloatingText(player.x, player.y - 20, '+5 Máu Tối Đa!', '#ec4899', true);
+        this.particles.spark(item.x, item.y, '#ef4444', 8);
+        this.particles.addFloatingText(player.x, player.y - 20, '+5 Máu Tối Đa!', '#ef4444', true);
         break;
       }
       case 'speed': {
         player.speed = Math.min(320, player.speed + 4);
-        this.particles.spark(item.x, item.y, '#38bdf8', 6);
-        this.particles.addFloatingText(player.x, player.y - 20, '+4 Tốc Độ!', '#38bdf8', true);
+        this.particles.spark(item.x, item.y, '#eab308', 8);
+        this.particles.addFloatingText(player.x, player.y - 20, '+4 Tốc Độ!', '#eab308', true);
         break;
       }
       case 'vacuum': {
